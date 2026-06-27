@@ -15,6 +15,15 @@ sub init()
     m.focusedTeam = "left"
     m.keyboardDialog = invalid
 
+    m.repeatDirection = ""
+    m.repeatFast = false
+    m.repeatDelayTimer = m.top.findNode("repeatDelayTimer")
+    m.repeatDelayTimer.observeField("fire", "onRepeatDelayTimerFire")
+    m.repeatTimer = m.top.findNode("repeatTimer")
+    m.repeatTimer.observeField("fire", "onRepeatTimerFire")
+    m.repeatAccelTimer = m.top.findNode("repeatAccelTimer")
+    m.repeatAccelTimer.observeField("fire", "onRepeatAccelTimerFire")
+
     refreshFocusRings()
 end sub
 
@@ -87,9 +96,119 @@ sub onNameEntryButtonSelected()
     m.top.setFocus(true)
 end sub
 
+' ---- up/down logic (shared by key press and hold timer) -----------------
+
+sub applyUpDown(direction as string)
+    delta = 1
+    if m.repeatFast then delta = 10
+
+    if direction = "up"
+        if m.focusedTeam = "left"
+            if m.leftScores.count() = 0
+                m.leftScores.push(delta)
+            else
+                lastIdx = m.leftScores.count() - 1
+                m.leftScores[lastIdx] = m.leftScores[lastIdx] + delta
+            end if
+        else
+            if m.rightScores.count() = 0
+                m.rightScores.push(delta)
+            else
+                lastIdx = m.rightScores.count() - 1
+                m.rightScores[lastIdx] = m.rightScores[lastIdx] + delta
+            end if
+        end if
+    else if direction = "down"
+        if m.focusedTeam = "left"
+            if m.leftScores.count() > 0
+                lastIdx = m.leftScores.count() - 1
+                newVal = m.leftScores[lastIdx] - delta
+                if newVal < 0 then newVal = 0
+                m.leftScores[lastIdx] = newVal
+            end if
+        else
+            if m.rightScores.count() > 0
+                lastIdx = m.rightScores.count() - 1
+                newVal = m.rightScores[lastIdx] - delta
+                if newVal < 0 then newVal = 0
+                m.rightScores[lastIdx] = newVal
+            end if
+        end if
+    end if
+    pushScores()
+end sub
+
+sub onRepeatDelayTimerFire()
+    if m.repeatDirection <> ""
+        m.repeatTimer.control = "start"
+    end if
+end sub
+
+sub onRepeatTimerFire()
+    if m.repeatDirection <> ""
+        applyUpDown(m.repeatDirection)
+    end if
+end sub
+
+sub onRepeatAccelTimerFire()
+    if m.repeatDirection = "" then return
+    m.repeatFast = true
+    ' Snap the last score to the nearest 10 boundary in the direction of travel.
+    if m.focusedTeam = "left"
+        if m.leftScores.count() = 0 then return
+        lastIdx = m.leftScores.count() - 1
+        val = m.leftScores[lastIdx]
+        if m.repeatDirection = "up"
+            m.leftScores[lastIdx] = (val \ 10 + 1) * 10
+        else
+            if val mod 10 = 0
+                snapped = val - 10
+            else
+                snapped = (val \ 10) * 10
+            end if
+            if snapped < 0 then snapped = 0
+            m.leftScores[lastIdx] = snapped
+        end if
+    else
+        if m.rightScores.count() = 0 then return
+        lastIdx = m.rightScores.count() - 1
+        val = m.rightScores[lastIdx]
+        if m.repeatDirection = "up"
+            m.rightScores[lastIdx] = (val \ 10 + 1) * 10
+        else
+            if val mod 10 = 0
+                snapped = val - 10
+            else
+                snapped = (val \ 10) * 10
+            end if
+            if snapped < 0 then snapped = 0
+            m.rightScores[lastIdx] = snapped
+        end if
+    end if
+    pushScores()
+end sub
+
 ' ---- remote input --------------------------------------------------------
 
 function onKeyEvent(key as string, press as boolean) as boolean
+    ' Handle up/down on both press and release so the hold timer stays in sync.
+    if key = "up" or key = "down"
+        if press
+            m.repeatDirection = key
+            m.repeatFast = false
+            applyUpDown(key)
+            m.repeatDelayTimer.control = "start"
+            m.repeatAccelTimer.control = "start"
+        else
+            m.repeatDelayTimer.control = "stop"
+            m.repeatTimer.control = "stop"
+            m.repeatAccelTimer.control = "stop"
+            m.repeatDirection = ""
+            m.repeatFast = false
+        end if
+        return true
+    end if
+
     if not press then return false
 
     handled = true
@@ -97,42 +216,6 @@ function onKeyEvent(key as string, press as boolean) as boolean
     if key = "left" or key = "right"
         m.focusedTeam = key
         refreshFocusRings()
-
-    else if key = "up"
-        if m.focusedTeam = "left"
-            if m.leftScores.count() = 0
-                m.leftScores.push(1)
-            else
-                lastIdx = m.leftScores.count() - 1
-                m.leftScores[lastIdx] = m.leftScores[lastIdx] + 1
-            end if
-        else
-            if m.rightScores.count() = 0
-                m.rightScores.push(1)
-            else
-                lastIdx = m.rightScores.count() - 1
-                m.rightScores[lastIdx] = m.rightScores[lastIdx] + 1
-            end if
-        end if
-        pushScores()
-
-    else if key = "down"
-        if m.focusedTeam = "left"
-            if m.leftScores.count() > 0
-                lastIdx = m.leftScores.count() - 1
-                if m.leftScores[lastIdx] > 0
-                    m.leftScores[lastIdx] = m.leftScores[lastIdx] - 1
-                end if
-            end if
-        else
-            if m.rightScores.count() > 0
-                lastIdx = m.rightScores.count() - 1
-                if m.rightScores[lastIdx] > 0
-                    m.rightScores[lastIdx] = m.rightScores[lastIdx] - 1
-                end if
-            end if
-        end if
-        pushScores()
 
     else if key = "OK"
         if m.focusedTeam = "left"
