@@ -13,7 +13,7 @@
 
     <children>
         <Label
-            translation="[660, 60]"
+            translation="[660, 40]"
             width="600"
             height="60"
             horizAlign="center"
@@ -22,11 +22,11 @@
 
         <TeamPanel
             id="leftPanel"
-            translation="[160, 300]"
+            translation="[160, 120]"
             teamName="PLAYER 1" />
 
         <Label
-            translation="[930, 480]"
+            translation="[930, 450]"
             width="60"
             height="60"
             horizAlign="center"
@@ -34,15 +34,15 @@
 
         <TeamPanel
             id="rightPanel"
-            translation="[1340, 300]"
+            translation="[1340, 120]"
             teamName="PLAYER 2" />
 
         <Label
-            translation="[660, 920]"
-            width="600"
+            translation="[360, 870]"
+            width="1200"
             height="40"
             horizAlign="center"
-            text="Left/Right: switch   Up/Down: +/- 1   OK: set score   *: rename"
+            text="Left/Right: switch   Up/Down: adjust last   OK: add round   *: rename"
             font="font:SmallSystemFont" />
 
         <NumberEntry

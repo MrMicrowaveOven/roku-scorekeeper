@@ -2,16 +2,18 @@
 <!--********** Copyright 2026  All Rights Reserved. **********-->
 
 <!--
-    TeamPanel — renders a team name and a big score digit.
+    TeamPanel — renders a team name, per-round score history, and total.
     Written once, instantiated twice (left/right) by Scoreboard.
-    Exposes "teamName" and "score" as public fields so the parent
-    can drive it without reaching into its internals.
+    Exposes "teamName", "score" (total), and "roundScores" (newline-
+    separated history string) as public fields. Scoreboard drives all
+    three; no game logic lives here.
     -->
 <component name="TeamPanel" extends="Group">
 
     <interface>
         <field id="teamName" type="string" onChange="onTeamNameChange" />
         <field id="score" type="integer" value="0" onChange="onScoreChange" />
+        <field id="roundScores" type="string" value="" onChange="onRoundScoresChange" />
         <field id="focused" type="boolean" value="false" onChange="onFocusedChange" />
     </interface>
 
@@ -21,25 +23,40 @@
         <Rectangle
             id="focusRing"
             width="420"
-            height="420"
+            height="680"
             color="0x00000000" />
 
         <Label
             id="nameLabel"
-            translation="[40, 40]"
+            translation="[40, 20]"
             width="340"
-            height="60"
+            height="50"
             horizAlign="center"
             font="font:LargeBoldSystemFont" />
 
-        <Label
-            id="scoreLabel"
-            translation="[40, 130]"
+        <Rectangle
+            translation="[40, 76]"
             width="340"
-            height="260"
+            height="2"
+            color="0xFFFFFF60" />
+
+        <Group
+            id="roundsGroup"
+            translation="[40, 86]" />
+
+        <Rectangle
+            translation="[40, 608]"
+            width="340"
+            height="2"
+            color="0xFFFFFF60" />
+
+        <Label
+            id="totalLabel"
+            translation="[40, 616]"
+            width="340"
+            height="56"
             horizAlign="center"
-            vertAlign="center"
-            text="0"
-            font="font:LargeSystemFont" />
+            text="Total: 0"
+            font="font:MediumBoldSystemFont" />
     </children>
 </component>

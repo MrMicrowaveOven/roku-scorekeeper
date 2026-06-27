@@ -2,17 +2,15 @@
 <!--********** Copyright 2026  All Rights Reserved. **********-->
 
 <!--
-    NumberEntry — hidden overlay for typing a score directly,
-    e.g. correcting a mis-tracked total. Scoreboard shows/hides this
-    and moves key-event focus to it while active.
+    NumberEntry — display-only overlay for typing a score directly.
+    Scoreboard.brs owns all key handling and state; this component
+    just renders whatever Scoreboard sets on its fields.
     -->
 <component name="NumberEntry" extends="Group">
 
     <interface>
-        <field id="promptText" type="string" value="" />
-        <field id="visible" type="boolean" value="false" alias="dimBg.visible" />
-        <field id="confirmedValue" type="integer" alwaysNotify="true" />
-        <field id="cancelled" type="boolean" alwaysNotify="true" />
+        <field id="promptText" type="string" value="" onChange="onPromptTextChange" />
+        <field id="digits" type="string" value="0" onChange="onDigitsChange" />
     </interface>
 
     <script type="text/brightscript" uri="pkg:/components/NumberEntry.brs" />
@@ -22,8 +20,7 @@
             id="dimBg"
             width="1920"
             height="1080"
-            color="0x000000C0"
-            visible="false" />
+            color="0x000000C0" />
 
         <Label
             id="promptLabel"
@@ -44,8 +41,8 @@
 
         <Label
             id="hintLabel"
-            translation="[660, 620]"
-            width="600"
+            translation="[360, 620]"
+            width="1200"
             height="40"
             horizAlign="center"
             text="0-9: enter digits   OK: confirm   Back: cancel"
