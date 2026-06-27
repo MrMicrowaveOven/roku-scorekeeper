@@ -1,19 +1,15 @@
 ' ********** Copyright 2026  All Rights Reserved. **********
 ' Scoreboard.brs — single source of truth for all game state and input.
-' NumberEntry and TeamPanel are dumb renderers driven entirely by this file.
+' TeamPanel is a dumb renderer driven entirely by this file.
 
 sub init()
     m.leftPanel = m.top.findNode("leftPanel")
     m.rightPanel = m.top.findNode("rightPanel")
-    m.numberEntry = m.top.findNode("numberEntry")
 
     m.leftScores = []
     m.rightScores = []
     m.leftName = "PLAYER 1"
     m.rightName = "PLAYER 2"
-
-    ' Digit buffer for the number-entry overlay.
-    m.digits = ""
 
     ' "left" or "right" — which team currently responds to up/down.
     m.focusedTeam = "left"
@@ -61,21 +57,6 @@ sub pushScores()
     m.rightPanel.roundScores = formatRoundScores(m.rightScores)
 end sub
 
-' ---- number-entry overlay ------------------------------------------------
-
-sub openNumberEntryForFocusedTeam()
-    m.digits = ""
-    m.numberEntry.digits = "0"
-
-    if m.focusedTeam = "left"
-        m.numberEntry.promptText = "Add round for " + m.leftName
-    else
-        m.numberEntry.promptText = "Add round for " + m.rightName
-    end if
-
-    m.numberEntry.visible = true
-end sub
-
 ' ---- name entry (keyboard dialog) ----------------------------------------
 
 sub openNameEntryForFocusedTeam()
@@ -107,51 +88,10 @@ sub onNameEntryButtonSelected()
 end sub
 
 ' ---- remote input --------------------------------------------------------
-' Scoreboard holds focus for the entire lifetime of the scene. When the
-' number-entry overlay is visible, onKeyEvent handles digit input directly
-' rather than delegating — no callFunc or focus transfers needed.
 
 function onKeyEvent(key as string, press as boolean) as boolean
     if not press then return false
 
-    ' ---- number-entry overlay active ------------------------------------
-    if m.numberEntry.visible
-        if key >= "0" and key <= "9"
-            if Len(m.digits) < 3
-                m.digits = m.digits + key
-                m.numberEntry.digits = m.digits
-            end if
-
-        else if key = "OK"
-            newScore = 0
-            if m.digits <> "" then newScore = m.digits.toInt()
-            if m.focusedTeam = "left"
-                m.leftScores.push(newScore)
-            else
-                m.rightScores.push(newScore)
-            end if
-            pushScores()
-            m.numberEntry.visible = false
-            m.digits = ""
-
-        else if key = "back"
-            if Len(m.digits) > 0
-                m.digits = Left(m.digits, Len(m.digits) - 1)
-                if m.digits = ""
-                    m.numberEntry.digits = "0"
-                else
-                    m.numberEntry.digits = m.digits
-                end if
-            else
-                m.numberEntry.visible = false
-                m.digits = ""
-            end if
-        end if
-
-        return true ' consume all keys while overlay is open
-    end if
-
-    ' ---- normal scoreboard input ----------------------------------------
     handled = true
 
     if key = "left" or key = "right"
@@ -195,7 +135,12 @@ function onKeyEvent(key as string, press as boolean) as boolean
         pushScores()
 
     else if key = "OK"
-        openNumberEntryForFocusedTeam()
+        if m.focusedTeam = "left"
+            m.leftScores.push(0)
+        else
+            m.rightScores.push(0)
+        end if
+        pushScores()
 
     else if key = "options"
         openNameEntryForFocusedTeam()

@@ -42,11 +42,7 @@
             width="1200"
             height="40"
             horizAlign="center"
-            text="Left/Right: switch   Up/Down: adjust last   OK: add round   *: rename"
+            text="Left/Right: switch   Up/Down: adjust   OK: new round   *: rename"
             font="font:SmallSystemFont" />
-
-        <NumberEntry
-            id="numberEntry"
-            visible="false" />
     </children>
 </component>
