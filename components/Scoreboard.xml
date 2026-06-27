@@ -23,7 +23,7 @@
         <TeamPanel
             id="leftPanel"
             translation="[160, 300]"
-            teamName="HOME" />
+            teamName="PLAYER 1" />
 
         <Label
             translation="[930, 480]"
@@ -35,14 +35,14 @@
         <TeamPanel
             id="rightPanel"
             translation="[1340, 300]"
-            teamName="AWAY" />
+            teamName="PLAYER 2" />
 
         <Label
             translation="[660, 920]"
             width="600"
             height="40"
             horizAlign="center"
-            text="Left/Right: select team   Up/Down: +/- 1   OK: edit score"
+            text="Left/Right: switch   Up/Down: +/- 1   OK: set score   *: rename"
             font="font:SmallSystemFont" />
 
         <NumberEntry

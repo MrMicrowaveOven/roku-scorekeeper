@@ -10,9 +10,12 @@ sub init()
 
     m.leftScore = 0
     m.rightScore = 0
+    m.leftName = "PLAYER 1"
+    m.rightName = "PLAYER 2"
 
     ' "left" or "right" — which team currently responds to up/down.
     m.focusedTeam = "left"
+    m.keyboardDialog = invalid
 
     ' Listen for the overlay telling us it has a confirmed value or was cancelled.
     m.numberEntry.observeField("confirmedValue", "onNumberEntryConfirmed")
@@ -39,9 +42,9 @@ sub openNumberEntryForFocusedTeam()
     m.numberEntry.callFunc("reset")
 
     if m.focusedTeam = "left"
-        m.numberEntry.promptText = "Set HOME score"
+        m.numberEntry.promptText = "Set " + m.leftName + " score"
     else
-        m.numberEntry.promptText = "Set AWAY score"
+        m.numberEntry.promptText = "Set " + m.rightName + " score"
     end if
 
     m.numberEntry.visible = true
@@ -68,6 +71,36 @@ end sub
 
 sub onNumberEntryCancelled()
     closeNumberEntry()
+end sub
+
+' ---- name entry (keyboard dialog) ---------------------------------------
+
+sub openNameEntryForFocusedTeam()
+    dialog = CreateObject("roSGNode", "KeyboardDialog")
+    dialog.title = "Rename Player"
+    dialog.buttons = ["OK", "Cancel"]
+    m.top.getScene().appendChild(dialog)
+    m.keyboardDialog = dialog
+    dialog.observeField("buttonSelected", "onNameEntryButtonSelected")
+    dialog.setFocus(true)
+end sub
+
+sub onNameEntryButtonSelected()
+    if m.keyboardDialog.buttonSelected = 0  ' OK
+        newName = UCase(m.keyboardDialog.keyboard.text.trim())
+        if newName <> ""
+            if m.focusedTeam = "left"
+                m.leftName = newName
+                m.leftPanel.teamName = newName
+            else
+                m.rightName = newName
+                m.rightPanel.teamName = newName
+            end if
+        end if
+    end if
+    m.top.getScene().removeChild(m.keyboardDialog)
+    m.keyboardDialog = invalid
+    m.top.setFocus(true)
 end sub
 
 ' ---- remote input -------------------------------------------------------
@@ -103,6 +136,9 @@ function onKeyEvent(key as string, press as boolean) as boolean
 
     else if key = "OK"
         openNumberEntryForFocusedTeam()
+
+    else if key = "options"
+        openNameEntryForFocusedTeam()
 
     else
         handled = false
