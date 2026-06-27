@@ -1,0 +1,52 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<!--********** Copyright 2026  All Rights Reserved. **********-->
+
+<!--
+    Scoreboard — owns all game state (leftScore, rightScore, which
+    team is focused) and all remote-key handling. TeamPanel and
+    NumberEntry are purely presentational; they just render fields
+    Scoreboard sets on them.
+    -->
+<component name="Scoreboard" extends="Group">
+
+    <script type="text/brightscript" uri="pkg:/components/Scoreboard.brs" />
+
+    <children>
+        <Label
+            translation="[660, 60]"
+            width="600"
+            height="60"
+            horizAlign="center"
+            text="SCOREKEEPER"
+            font="font:LargeBoldSystemFont" />
+
+        <TeamPanel
+            id="leftPanel"
+            translation="[160, 300]"
+            teamName="HOME" />
+
+        <Label
+            translation="[930, 480]"
+            width="60"
+            height="60"
+            horizAlign="center"
+            text="-" />
+
+        <TeamPanel
+            id="rightPanel"
+            translation="[1340, 300]"
+            teamName="AWAY" />
+
+        <Label
+            translation="[660, 920]"
+            width="600"
+            height="40"
+            horizAlign="center"
+            text="Left/Right: select team   Up/Down: +/- 1   OK: edit score"
+            font="font:SmallSystemFont" />
+
+        <NumberEntry
+            id="numberEntry"
+            visible="false" />
+    </children>
+</component>

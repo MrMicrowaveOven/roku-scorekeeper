@@ -1,0 +1,45 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<!--********** Copyright 2026  All Rights Reserved. **********-->
+
+<!--
+    TeamPanel — renders a team name and a big score digit.
+    Written once, instantiated twice (left/right) by Scoreboard.
+    Exposes "teamName" and "score" as public fields so the parent
+    can drive it without reaching into its internals.
+    -->
+<component name="TeamPanel" extends="Group">
+
+    <interface>
+        <field id="teamName" type="string" onChange="onTeamNameChange" />
+        <field id="score" type="integer" value="0" onChange="onScoreChange" />
+        <field id="focused" type="boolean" value="false" onChange="onFocusedChange" />
+    </interface>
+
+    <script type="text/brightscript" uri="pkg:/components/TeamPanel.brs" />
+
+    <children>
+        <Rectangle
+            id="focusRing"
+            width="420"
+            height="420"
+            color="0x00000000" />
+
+        <Label
+            id="nameLabel"
+            translation="[40, 40]"
+            width="340"
+            height="60"
+            horizAlign="center"
+            font="font:LargeBoldSystemFont" />
+
+        <Label
+            id="scoreLabel"
+            translation="[40, 130]"
+            width="340"
+            height="260"
+            horizAlign="center"
+            vertAlign="center"
+            text="0"
+            font="font:LargeSystemFont" />
+    </children>
+</component>

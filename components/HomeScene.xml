@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<!--********** Copyright 2026  All Rights Reserved. **********-->
+
+<!--
+    Top-level scene. Its only job is to host the Scoreboard
+    and hand it focus on launch.
+    -->
+<component name="HomeScene" extends="Scene">
+
+    <script type="text/brightscript" uri="pkg:/components/HomeScene.brs" />
+
+    <children>
+        <Scoreboard
+            id="Scoreboard"
+            translation="[0,0]" />
+    </children>
+</component>
