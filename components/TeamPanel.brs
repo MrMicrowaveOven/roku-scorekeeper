@@ -19,7 +19,7 @@ end sub
 
 sub onFocusedChange()
     if m.top.focused
-        m.focusRing.color = "0x3399FFFF"
+        m.focusRing.color = "0xD4AF37FF"
     else
         m.focusRing.color = "0x00000000"
     end if
