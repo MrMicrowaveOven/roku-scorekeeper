@@ -46,12 +46,12 @@ sub applyLayout()
     m.divider1.translation = [margin, 76]
     m.divider1.width       = cw
 
-    m.roundsGroup.translation = [margin, 86]
+    m.roundsGroup.translation = [margin, 102]
 
-    m.divider2.translation = [margin, 608]
+    m.divider2.translation = [margin, 752]
     m.divider2.width       = cw
 
-    m.totalLabel.translation = [margin, 616]
+    m.totalLabel.translation = [margin, 760]
     m.totalLabel.width       = cw
 end sub
 
@@ -154,12 +154,12 @@ sub rebuildRounds()
         plusLbl = CreateObject("roSGNode", "Label")
         plusLbl.text       = "+"
         plusLbl.width      = cw
-        plusLbl.height     = squareSize
+        plusLbl.height     = lineHeight
         plusLbl.horizAlign = "center"
         plusLbl.vertAlign  = "center"
         plusLbl.font       = "font:LargeBoldSystemFont"
         plusLbl.color      = "0x000000FF"
-        plusLbl.translation = [0, yPos]
+        plusLbl.translation = [0, yPos - (lineHeight - squareSize) / 2]
         m.roundsGroup.appendChild(plusLbl)
     end if
 end sub

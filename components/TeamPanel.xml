@@ -26,7 +26,7 @@
         <Rectangle
             id="focusRing"
             width="420"
-            height="680"
+            height="820"
             color="0x00000000" />
 
         <Label
@@ -46,18 +46,18 @@
 
         <Group
             id="roundsGroup"
-            translation="[40, 86]" />
+            translation="[40, 102]" />
 
         <Rectangle
             id="divider2"
-            translation="[40, 608]"
+            translation="[40, 752]"
             width="340"
             height="2"
             color="0xFFFFFF60" />
 
         <Label
             id="totalLabel"
-            translation="[40, 616]"
+            translation="[40, 760]"
             width="340"
             height="56"
             horizAlign="center"

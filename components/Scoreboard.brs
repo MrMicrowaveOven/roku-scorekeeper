@@ -34,7 +34,7 @@ sub init()
     m.repeatAccelTimer = m.top.findNode("repeatAccelTimer")
     m.repeatAccelTimer.observeField("fire", "onRepeatAccelTimerFire")
 
-    refreshHint()
+    m.hintLabel.visible = false
 end sub
 
 ' ---- player count field observer -----------------------------------------
@@ -43,6 +43,7 @@ sub onPlayerCountChange()
     n = m.top.playerCount
     if n < 1 then n = 1
     if n > 8 then n = 8
+    m.hintLabel.visible = true
     setupPlayers(n)
 end sub
 
@@ -50,21 +51,27 @@ end sub
 
 sub computeLayout(n as integer)
     ' Panels live within x=160..1760 (1600px content area).
-    ' For 1-3 players use the full width so they spread apart naturally.
-    ' For 4+ players pack tightly with a 10px inter-panel gap.
+    ' 1-2 players use original 420px width (matches classic 2-player layout).
+    ' 3+ players fill the content area, packed tightly with a 10px gap.
     contentLeft  = 160
     contentWidth = 1600
     minGap       = 10
 
-    pw = (contentWidth - (n - 1) * minGap) / n
-    if pw > 800 then pw = 800   ' cap single-player panel at reasonable width
-    if pw < 150 then pw = 150
-
-    totalGap = contentWidth - n * pw
-    if n = 1
-        startX = contentLeft + (contentWidth - pw) / 2
-        gap    = 0
+    if n <= 2
+        pw = 420
+        if n = 1
+            startX = contentLeft + (contentWidth - pw) / 2
+            gap    = 0
+        else
+            gap    = 500
+            groupW = 2 * pw + gap
+            startX = contentLeft + (contentWidth - groupW) / 2
+        end if
     else
+        pw = (contentWidth - (n - 1) * minGap) / n
+        if pw > 800 then pw = 800
+        if pw < 150 then pw = 150
+        totalGap = contentWidth - n * pw
         gap    = totalGap / (n - 1)
         startX = contentLeft
     end if
@@ -145,7 +152,7 @@ sub positionAddPlayerBox()
     if n = 0 then return
     lastX = m.panels[n - 1].translation[0]
     xPos  = lastX + m.panelWidth + 20
-    yPos  = 120 + 310   ' vertically centred in the 680px panel area
+    yPos  = 120 + 388   ' vertically centred in the 840px panel area
     m.addPlayerBox.translation = [xPos, yPos]
 end sub
 
