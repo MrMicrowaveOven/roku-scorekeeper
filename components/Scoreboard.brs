@@ -243,6 +243,21 @@ sub syncCursorDisplays()
     next
 end sub
 
+' Mirror sourceCursor onto the currently focused player, clamped to their data.
+sub syncDestCursor(sourceCursor as integer)
+    if m.focusedIdx >= m.panels.count() then return
+    destCount = m.scores[m.focusedIdx].count()
+    if sourceCursor = -2
+        m.cursors[m.focusedIdx] = -2
+    else if sourceCursor >= 0 and sourceCursor < destCount
+        m.cursors[m.focusedIdx] = sourceCursor   ' same round exists
+    else
+        m.cursors[m.focusedIdx] = destCount       ' clamp to append slot
+    end if
+    newOffset = computeOffset(m.scores[m.focusedIdx], m.cursors[m.focusedIdx])
+    m.offsets[m.focusedIdx] = newOffset
+end sub
+
 sub refreshHint()
     if m.editMode
         m.hintLabel.text = "Up/Down: adjust score   OK / Back: done"
@@ -561,16 +576,24 @@ function onKeyEvent(key as string, press as boolean) as boolean
     n = m.panels.count()
 
     if key = "left"
+        cursorToSync = m.cursors[m.focusedIdx]
         if m.editMode then exitEditMode()
-        if m.focusedIdx > 0 then m.focusedIdx = m.focusedIdx - 1
+        if m.focusedIdx > 0
+            m.focusedIdx = m.focusedIdx - 1
+            syncDestCursor(cursorToSync)
+        end if
         syncCursorDisplays()
         refreshFocusRings()
 
     else if key = "right"
+        cursorToSync = m.cursors[m.focusedIdx]
         if m.editMode then exitEditMode()
         maxIdx = n - 1
         if n < 8 then maxIdx = n   ' add-player slot is reachable
-        if m.focusedIdx < maxIdx then m.focusedIdx = m.focusedIdx + 1
+        if m.focusedIdx < maxIdx
+            m.focusedIdx = m.focusedIdx + 1
+            syncDestCursor(cursorToSync)
+        end if
         syncCursorDisplays()
         refreshFocusRings()
 
