@@ -42,7 +42,8 @@
             width="1200"
             height="40"
             horizAlign="center"
-            text="Left/Right: switch   Up/Down: adjust   OK: new round   *: rename"
+            id="hintLabel"
+            text="Up/Down: select round   OK: edit / add   Left/Right: switch   *: rename"
             font="font:SmallSystemFont" />
 
         <Timer id="repeatDelayTimer" duration="0.5" repeat="false" />

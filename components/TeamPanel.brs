@@ -1,7 +1,5 @@
 ' ********** Copyright 2026  All Rights Reserved. **********
-' TeamPanel.brs — purely presentational. It renders whatever score/name
-' it's given and reports its own focus state visually. All game rules
-' (when to increment, win conditions, etc.) live in Scoreboard.brs.
+' TeamPanel.brs — purely presentational. Renders whatever Scoreboard sets.
 
 sub init()
     m.nameLabel = m.top.findNode("nameLabel")
@@ -18,28 +16,16 @@ sub onScoreChange()
     m.totalLabel.text = "Total: " + m.top.score.toStr()
 end sub
 
-' One Label node per round — avoids depending on chr(10) line-break
-' support in the Label component.
 sub onRoundScoresChange()
-    for i = m.roundsGroup.getChildCount() - 1 to 0 step -1
-        m.roundsGroup.removeChildIndex(i)
-    next
+    rebuildRounds()
+end sub
 
-    if m.top.roundScores = "" then return
+sub onCursorIndexChange()
+    rebuildRounds()
+end sub
 
-    rounds = splitOnNewline(m.top.roundScores)
-    lineHeight = 80
-
-    for i = 0 to rounds.count() - 1
-        lbl = CreateObject("roSGNode", "Label")
-        lbl.text = rounds[i]
-        lbl.width = 340
-        lbl.height = lineHeight
-        lbl.horizAlign = "center"
-        lbl.translation = [0, i * lineHeight]
-        lbl.font = "font:LargeBoldSystemFont"
-        m.roundsGroup.appendChild(lbl)
-    next
+sub onEditModeChange()
+    rebuildRounds()
 end sub
 
 sub onFocusedChange()
@@ -50,7 +36,73 @@ sub onFocusedChange()
     end if
 end sub
 
-' Split a string on chr(10) into an array of substrings.
+sub rebuildRounds()
+    for i = m.roundsGroup.getChildCount() - 1 to 0 step -1
+        m.roundsGroup.removeChildIndex(i)
+    next
+
+    rounds = []
+    if m.top.roundScores <> ""
+        rounds = splitOnNewline(m.top.roundScores)
+    end if
+
+    lineHeight = 80
+    cursorDisplayIdx = m.top.cursorIndex - m.top.roundOffset
+    isEditMode = m.top.editMode
+
+    for i = 0 to rounds.count() - 1
+        lbl = CreateObject("roSGNode", "Label")
+        lbl.text = rounds[i]
+        lbl.width = 340
+        lbl.height = lineHeight
+        lbl.horizAlign = "center"
+        lbl.translation = [0, i * lineHeight]
+        lbl.font = "font:LargeBoldSystemFont"
+        if i = cursorDisplayIdx
+            if isEditMode
+                lbl.color = "0x00FFFFFF"  ' cyan = editing this round
+            else
+                lbl.color = "0x000000FF"  ' black = selected, not yet editing
+            end if
+        else
+            lbl.color = "0xFFFFFFFF"
+        end if
+        m.roundsGroup.appendChild(lbl)
+    next
+
+    ' Plus-square at the append slot — cursor is one past the last displayed row.
+    if cursorDisplayIdx >= 0 and cursorDisplayIdx = rounds.count()
+        yPos = cursorDisplayIdx * lineHeight
+        squareSize = 40
+        squareX = (340 - squareSize) / 2
+
+        outer = CreateObject("roSGNode", "Rectangle")
+        outer.width = squareSize
+        outer.height = squareSize
+        outer.color = "0x000000C0"
+        outer.translation = [squareX, yPos]
+        m.roundsGroup.appendChild(outer)
+
+        inner = CreateObject("roSGNode", "Rectangle")
+        inner.width = squareSize - 6
+        inner.height = squareSize - 6
+        inner.color = "0xD4AF37FF"
+        inner.translation = [squareX + 3, yPos + 3]
+        m.roundsGroup.appendChild(inner)
+
+        plusLbl = CreateObject("roSGNode", "Label")
+        plusLbl.text = "+"
+        plusLbl.width = 340
+        plusLbl.height = squareSize
+        plusLbl.horizAlign = "center"
+        plusLbl.vertAlign = "center"
+        plusLbl.font = "font:LargeBoldSystemFont"
+        plusLbl.color = "0x000000FF"
+        plusLbl.translation = [0, yPos]
+        m.roundsGroup.appendChild(plusLbl)
+    end if
+end sub
+
 function splitOnNewline(inputStr as string) as object
     parts = []
     lineStart = 1

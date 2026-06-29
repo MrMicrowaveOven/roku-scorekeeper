@@ -14,6 +14,9 @@
         <field id="teamName" type="string" onChange="onTeamNameChange" />
         <field id="score" type="integer" value="0" onChange="onScoreChange" />
         <field id="roundScores" type="string" value="" onChange="onRoundScoresChange" />
+        <field id="roundOffset" type="integer" value="0" />
+        <field id="cursorIndex" type="integer" value="-1" onChange="onCursorIndexChange" />
+        <field id="editMode" type="boolean" value="false" onChange="onEditModeChange" />
         <field id="focused" type="boolean" value="false" onChange="onFocusedChange" />
     </interface>
 
