@@ -15,7 +15,7 @@
 
     <children>
         <Label
-            translation="[360, 980]"
+            translation="[360, 990]"
             width="1200"
             height="40"
             horizAlign="center"

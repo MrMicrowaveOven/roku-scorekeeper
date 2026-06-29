@@ -122,7 +122,7 @@ sub setupPlayers(n as integer)
         m.panels.push(panel)
         m.scores.push([])
         m.names.push(name)
-        m.cursors.push(0)   ' 0 = append slot when no rounds exist
+        m.cursors.push(-2)   ' -2 = name row, default focus on player name
         m.offsets.push(0)
     next
 
@@ -132,6 +132,7 @@ sub setupPlayers(n as integer)
     if n < 8 then showAddPlayerBox()
 
     refreshFocusRings()
+    syncCursorDisplays()
     pushScores()
     refreshHint()
 end sub
