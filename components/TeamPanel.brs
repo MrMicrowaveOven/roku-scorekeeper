@@ -18,11 +18,25 @@ sub onPanelWidthChange()
     rebuildRounds()
 end sub
 
+function layoutMargin(pw as integer) as integer
+    if pw >= 400 then return 40
+    if pw >= 250 then return 20
+    return 10
+end function
+
 sub applyLayout()
-    pw = m.top.panelWidth
-    if pw >= 180 then margin = 40 else margin = 10
-    cw = pw - 2 * margin
+    pw     = m.top.panelWidth
+    margin = layoutMargin(pw)
+    cw     = pw - 2 * margin
     if cw < 30 then cw = 30
+
+    if pw >= 250
+        m.nameLabel.font = "font:LargeBoldSystemFont"
+    else if pw >= 180
+        m.nameLabel.font = "font:MediumBoldSystemFont"
+    else
+        m.nameLabel.font = "font:SmallBoldSystemFont"
+    end if
 
     m.focusRing.width = pw
 
@@ -48,7 +62,7 @@ sub onTeamNameChange()
 end sub
 
 sub onScoreChange()
-    m.totalLabel.text = "Total: " + m.top.score.toStr()
+    m.totalLabel.text = m.top.score.toStr()
 end sub
 
 sub onRoundScoresChange()
@@ -88,9 +102,9 @@ sub rebuildRounds()
         rounds = splitOnNewline(m.top.roundScores)
     end if
 
-    pw = m.top.panelWidth
-    if pw >= 180 then margin = 40 else margin = 10
-    cw = pw - 2 * margin
+    pw     = m.top.panelWidth
+    margin = layoutMargin(pw)
+    cw     = pw - 2 * margin
     if cw < 30 then cw = 30
 
     lineHeight       = 80

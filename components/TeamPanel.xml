@@ -10,7 +10,7 @@
 <component name="TeamPanel" extends="Group">
 
     <interface>
-        <field id="panelWidth" type="integer" value="420" onChange="onPanelWidthChange" />
+        <field id="panelWidth"  type="integer" value="420" onChange="onPanelWidthChange" />
         <field id="teamName"   type="string"  value=""    onChange="onTeamNameChange" />
         <field id="score"      type="integer" value="0"   onChange="onScoreChange" />
         <field id="roundScores" type="string" value=""    onChange="onRoundScoresChange" />
@@ -61,7 +61,7 @@
             width="340"
             height="56"
             horizAlign="center"
-            text="Total: 0"
+            text="0"
             font="font:MediumBoldSystemFont" />
     </children>
 </component>

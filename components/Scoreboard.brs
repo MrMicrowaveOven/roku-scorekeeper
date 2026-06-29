@@ -14,13 +14,16 @@ sub init()
 
     m.focusedIdx = 0   ' which player has focus; == panels.count() means add-player slot
     m.editMode   = false
-    m.panelWidth = 420
-    m.panelGap   = 0
+    m.panelWidth  = 420
+    m.panelGap    = 0
+    m.panelStartX = 160
 
     m.keyboardDialog = invalid
     m.deleteDialog   = invalid   ' delete round
     m.confirmDialog  = invalid   ' delete player
-    m.addPlayerBox   = invalid
+    m.addPlayerBox = m.top.findNode("addPlayerBox")
+    m.addBoxInner  = m.top.findNode("addBoxInner")
+    m.addBoxLabel  = m.top.findNode("addBoxLabel")
 
     m.repeatDirection = ""
     m.repeatFast = false
@@ -46,25 +49,36 @@ end sub
 ' ---- layout helpers -------------------------------------------------------
 
 sub computeLayout(n as integer)
-    if n >= 8
-        availW = 1920
-    else
-        availW = 1820   ' 100px reserved on right for add-player box
-    end if
-    pw = (availW - (n + 1) * 20) / n
-    if pw > 420 then pw = 420
+    ' Panels live within x=160..1760 (1600px content area).
+    ' For 1-3 players use the full width so they spread apart naturally.
+    ' For 4+ players pack tightly with a 10px inter-panel gap.
+    contentLeft  = 160
+    contentWidth = 1600
+    minGap       = 10
+
+    pw = (contentWidth - (n - 1) * minGap) / n
+    if pw > 800 then pw = 800   ' cap single-player panel at reasonable width
     if pw < 150 then pw = 150
-    gap = (availW - n * pw) / (n + 1)
-    if gap < 10 then gap = 10
-    m.panelWidth = pw
-    m.panelGap   = gap
+
+    totalGap = contentWidth - n * pw
+    if n = 1
+        startX = contentLeft + (contentWidth - pw) / 2
+        gap    = 0
+    else
+        gap    = totalGap / (n - 1)
+        startX = contentLeft
+    end if
+
+    m.panelWidth  = pw
+    m.panelGap    = gap
+    m.panelStartX = startX
 end sub
 
 sub relayoutPanels()
     n = m.panels.count()
     computeLayout(n)
     for i = 0 to n - 1
-        xPos = m.panelGap + i * (m.panelWidth + m.panelGap)
+        xPos = m.panelStartX + i * (m.panelWidth + m.panelGap)
         m.panels[i].translation = [xPos, 120]
         m.panels[i].panelWidth  = m.panelWidth
     next
@@ -77,10 +91,7 @@ sub setupPlayers(n as integer)
     for i = 0 to m.panels.count() - 1
         m.top.removeChild(m.panels[i])
     next
-    if m.addPlayerBox <> invalid
-        m.top.removeChild(m.addPlayerBox)
-        m.addPlayerBox = invalid
-    end if
+    hideAddPlayerBox()
 
     m.panels  = []
     m.scores  = []
@@ -93,7 +104,7 @@ sub setupPlayers(n as integer)
     for i = 0 to n - 1
         panel = CreateObject("roSGNode", "TeamPanel")
         panel.panelWidth = m.panelWidth
-        xPos = m.panelGap + i * (m.panelWidth + m.panelGap)
+        xPos = m.panelStartX + i * (m.panelWidth + m.panelGap)
         panel.translation = [xPos, 120]
         name = "PLAYER " + (i + 1).toStr()
         panel.teamName   = name
@@ -111,7 +122,7 @@ sub setupPlayers(n as integer)
     m.focusedIdx = 0
     m.editMode   = false
 
-    if n < 8 then createAddPlayerBox()
+    if n < 8 then showAddPlayerBox()
 
     refreshFocusRings()
     pushScores()
@@ -120,45 +131,16 @@ end sub
 
 ' ---- add-player box -------------------------------------------------------
 
-sub createAddPlayerBox()
-    if m.addPlayerBox <> invalid then return
-    grp = CreateObject("roSGNode", "Group")
-
-    outer = CreateObject("roSGNode", "Rectangle")
-    outer.id     = "addOuter"
-    outer.width  = 64
-    outer.height = 64
-    outer.color  = "0x000000C0"
-    outer.translation = [0, 0]
-    grp.appendChild(outer)
-
-    inner = CreateObject("roSGNode", "Rectangle")
-    inner.id     = "addInner"
-    inner.width  = 58
-    inner.height = 58
-    inner.color  = "0x555555FF"
-    inner.translation = [3, 3]
-    grp.appendChild(inner)
-
-    lbl = CreateObject("roSGNode", "Label")
-    lbl.id        = "addLabel"
-    lbl.text      = "+"
-    lbl.width     = 64
-    lbl.height    = 64
-    lbl.horizAlign = "center"
-    lbl.vertAlign  = "center"
-    lbl.font      = "font:LargeBoldSystemFont"
-    lbl.color     = "0xFFFFFFFF"
-    lbl.translation = [0, 0]
-    grp.appendChild(lbl)
-
-    m.top.appendChild(grp)
-    m.addPlayerBox = grp
+sub showAddPlayerBox()
+    m.addPlayerBox.visible = true
     positionAddPlayerBox()
 end sub
 
+sub hideAddPlayerBox()
+    m.addPlayerBox.visible = false
+end sub
+
 sub positionAddPlayerBox()
-    if m.addPlayerBox = invalid then return
     n = m.panels.count()
     if n = 0 then return
     lastX = m.panels[n - 1].translation[0]
@@ -168,15 +150,13 @@ sub positionAddPlayerBox()
 end sub
 
 sub updateAddPlayerBoxHighlight()
-    if m.addPlayerBox = invalid then return
-    inner = m.addPlayerBox.findNode("addInner")
-    lbl   = m.addPlayerBox.findNode("addLabel")
+    if not m.addPlayerBox.visible then return
     if m.focusedIdx = m.panels.count()
-        inner.color = "0xD4AF37FF"   ' gold = focused
-        lbl.color   = "0x000000FF"   ' black text on gold
+        m.addBoxInner.color = "0xD4AF37FF"   ' gold = focused
+        m.addBoxLabel.color = "0x000000FF"   ' black text on gold
     else
-        inner.color = "0x555555FF"   ' grey = unfocused
-        lbl.color   = "0xFFFFFFFF"
+        m.addBoxInner.color = "0x555555FF"   ' grey = unfocused
+        m.addBoxLabel.color = "0xFFFFFFFF"
     end if
 end sub
 
@@ -260,7 +240,7 @@ end sub
 
 sub refreshHint()
     if m.editMode
-        m.hintLabel.text = "Up/Down: adjust score   OK / Back: done"
+        m.hintLabel.text = "Up/Down: adjust score (hold for x10)   OK / Back: done"
     else
         m.hintLabel.text = "Up/Down: select   OK: edit/add/rename   *: delete   Left/Right: switch"
     end if
@@ -405,6 +385,7 @@ sub openDeleteRoundDialog()
 end sub
 
 sub onDeleteRoundButtonSelected()
+    if m.deleteDialog = invalid then return
     if m.deleteDialog.buttonSelected = 0
         pi  = m.focusedIdx
         idx = m.cursors[pi]
@@ -443,6 +424,7 @@ sub openDeletePlayerDialog()
 end sub
 
 sub onDeletePlayerButtonSelected()
+    if m.confirmDialog = invalid then return
     if m.confirmDialog.buttonSelected = 0 then deletePlayer(m.focusedIdx)
     m.top.getScene().removeChild(m.confirmDialog)
     m.confirmDialog = invalid
@@ -479,9 +461,7 @@ sub deletePlayer(pi as integer)
         m.focusedIdx = m.panels.count() - 1
     end if
 
-    if m.panels.count() < 8 and m.addPlayerBox = invalid
-        createAddPlayerBox()
-    end if
+    if m.panels.count() < 8 then showAddPlayerBox()
 
     relayoutPanels()
     refreshFocusRings()
@@ -509,10 +489,7 @@ sub addPlayer()
     m.cursors.push(0)
     m.offsets.push(0)
 
-    if m.panels.count() >= 8 and m.addPlayerBox <> invalid
-        m.top.removeChild(m.addPlayerBox)
-        m.addPlayerBox = invalid
-    end if
+    if m.panels.count() >= 8 then hideAddPlayerBox()
 
     relayoutPanels()
 
@@ -538,8 +515,9 @@ sub openNameEntryForFocused()
 end sub
 
 sub onNameEntryButtonSelected()
+    if m.keyboardDialog = invalid then return
     if m.keyboardDialog.buttonSelected = 0
-        newName = UCase(m.keyboardDialog.keyboard.text.trim())
+        newName = m.keyboardDialog.keyboard.text.trim()
         if newName <> "" and m.focusedIdx < m.panels.count()
             m.names[m.focusedIdx]         = newName
             m.panels[m.focusedIdx].teamName = newName
@@ -576,7 +554,11 @@ function onKeyEvent(key as string, press as boolean) as boolean
     n = m.panels.count()
 
     if key = "left"
-        cursorToSync = m.cursors[m.focusedIdx]
+        if m.focusedIdx < m.panels.count()
+            cursorToSync = m.cursors[m.focusedIdx]
+        else
+            cursorToSync = -1   ' add slot has no cursor
+        end if
         if m.editMode then exitEditMode()
         if m.focusedIdx > 0
             m.focusedIdx = m.focusedIdx - 1
@@ -586,7 +568,11 @@ function onKeyEvent(key as string, press as boolean) as boolean
         refreshFocusRings()
 
     else if key = "right"
-        cursorToSync = m.cursors[m.focusedIdx]
+        if m.focusedIdx < m.panels.count()
+            cursorToSync = m.cursors[m.focusedIdx]
+        else
+            cursorToSync = -1
+        end if
         if m.editMode then exitEditMode()
         maxIdx = n - 1
         if n < 8 then maxIdx = n   ' add-player slot is reachable

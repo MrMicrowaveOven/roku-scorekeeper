@@ -15,23 +15,22 @@
 
     <children>
         <Label
-            translation="[660, 40]"
-            width="600"
-            height="60"
-            horizAlign="center"
-            text="SCOREKEEPER"
-            font="font:LargeBoldSystemFont" />
-
-        <Label
-            translation="[360, 870]"
+            translation="[360, 980]"
             width="1200"
             height="40"
             horizAlign="center"
             id="hintLabel"
             font="font:SmallSystemFont" />
 
+        <!-- Add-player box: always in the tree, shown/hidden via visible field -->
+        <Group id="addPlayerBox" visible="false">
+            <Rectangle id="addBoxOuter" width="64" height="64" color="0x000000C0" />
+            <Rectangle id="addBoxInner" width="58" height="58" color="0x555555FF" translation="[3, 3]" />
+            <Label id="addBoxLabel" text="+" width="64" height="64" horizAlign="center" vertAlign="center" font="font:LargeBoldSystemFont" color="0xFFFFFFFF" />
+        </Group>
+
         <Timer id="repeatDelayTimer" duration="0.5" repeat="false" />
         <Timer id="repeatTimer" duration="0.15" repeat="true" />
-        <Timer id="repeatAccelTimer" duration="3.0" repeat="false" />
+        <Timer id="repeatAccelTimer" duration="2.0" repeat="false" />
     </children>
 </component>
