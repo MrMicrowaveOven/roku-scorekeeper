@@ -3,27 +3,24 @@
 ' TeamPanel is a dumb renderer driven entirely by this file.
 
 sub init()
-    m.leftPanel = m.top.findNode("leftPanel")
-    m.rightPanel = m.top.findNode("rightPanel")
     m.hintLabel = m.top.findNode("hintLabel")
 
-    m.leftScores = []
-    m.rightScores = []
-    m.leftName = "PLAYER 1"
-    m.rightName = "PLAYER 2"
+    ' Per-player state (arrays indexed 0..N-1)
+    m.panels  = []
+    m.scores  = []   ' array of roArray (one per player)
+    m.names   = []
+    m.cursors = []   ' cursor index per player: -2=name, 0..count-1=round, count=append
+    m.offsets = []   ' scroll offset per player
 
-    ' "left" or "right" — which team is focused.
-    m.focusedTeam = "left"
+    m.focusedIdx = 0   ' which player has focus; == panels.count() means add-player slot
+    m.editMode   = false
+    m.panelWidth = 420
+    m.panelGap   = 0
+
     m.keyboardDialog = invalid
-    m.deleteDialog = invalid
-
-    ' Cursor index into the scores array. count() = "append new round" slot.
-    m.leftCursor = 0
-    m.rightCursor = 0
-    ' Cached scroll offsets so moveCursor can compare without reading child fields.
-    m.leftOffset = 0
-    m.rightOffset = 0
-    m.editMode = false
+    m.deleteDialog   = invalid   ' delete round
+    m.confirmDialog  = invalid   ' delete player
+    m.addPlayerBox   = invalid
 
     m.repeatDirection = ""
     m.repeatFast = false
@@ -34,11 +31,153 @@ sub init()
     m.repeatAccelTimer = m.top.findNode("repeatAccelTimer")
     m.repeatAccelTimer.observeField("fire", "onRepeatAccelTimerFire")
 
-    m.leftPanel.cursorIndex = m.leftCursor
-    m.rightPanel.cursorIndex = -1
+    refreshHint()
+end sub
+
+' ---- player count field observer -----------------------------------------
+
+sub onPlayerCountChange()
+    n = m.top.playerCount
+    if n < 1 then n = 1
+    if n > 8 then n = 8
+    setupPlayers(n)
+end sub
+
+' ---- layout helpers -------------------------------------------------------
+
+sub computeLayout(n as integer)
+    if n >= 8
+        availW = 1920
+    else
+        availW = 1820   ' 100px reserved on right for add-player box
+    end if
+    pw = (availW - (n + 1) * 20) / n
+    if pw > 420 then pw = 420
+    if pw < 150 then pw = 150
+    gap = (availW - n * pw) / (n + 1)
+    if gap < 10 then gap = 10
+    m.panelWidth = pw
+    m.panelGap   = gap
+end sub
+
+sub relayoutPanels()
+    n = m.panels.count()
+    computeLayout(n)
+    for i = 0 to n - 1
+        xPos = m.panelGap + i * (m.panelWidth + m.panelGap)
+        m.panels[i].translation = [xPos, 120]
+        m.panels[i].panelWidth  = m.panelWidth
+    next
+    positionAddPlayerBox()
+end sub
+
+' ---- player setup ---------------------------------------------------------
+
+sub setupPlayers(n as integer)
+    for i = 0 to m.panels.count() - 1
+        m.top.removeChild(m.panels[i])
+    next
+    if m.addPlayerBox <> invalid
+        m.top.removeChild(m.addPlayerBox)
+        m.addPlayerBox = invalid
+    end if
+
+    m.panels  = []
+    m.scores  = []
+    m.names   = []
+    m.cursors = []
+    m.offsets = []
+
+    computeLayout(n)
+
+    for i = 0 to n - 1
+        panel = CreateObject("roSGNode", "TeamPanel")
+        panel.panelWidth = m.panelWidth
+        xPos = m.panelGap + i * (m.panelWidth + m.panelGap)
+        panel.translation = [xPos, 120]
+        name = "PLAYER " + (i + 1).toStr()
+        panel.teamName   = name
+        panel.cursorIndex = -1
+        panel.focused    = false
+        m.top.appendChild(panel)
+
+        m.panels.push(panel)
+        m.scores.push([])
+        m.names.push(name)
+        m.cursors.push(0)   ' 0 = append slot when no rounds exist
+        m.offsets.push(0)
+    next
+
+    m.focusedIdx = 0
+    m.editMode   = false
+
+    if n < 8 then createAddPlayerBox()
 
     refreshFocusRings()
+    pushScores()
     refreshHint()
+end sub
+
+' ---- add-player box -------------------------------------------------------
+
+sub createAddPlayerBox()
+    if m.addPlayerBox <> invalid then return
+    grp = CreateObject("roSGNode", "Group")
+
+    outer = CreateObject("roSGNode", "Rectangle")
+    outer.id     = "addOuter"
+    outer.width  = 64
+    outer.height = 64
+    outer.color  = "0x000000C0"
+    outer.translation = [0, 0]
+    grp.appendChild(outer)
+
+    inner = CreateObject("roSGNode", "Rectangle")
+    inner.id     = "addInner"
+    inner.width  = 58
+    inner.height = 58
+    inner.color  = "0x555555FF"
+    inner.translation = [3, 3]
+    grp.appendChild(inner)
+
+    lbl = CreateObject("roSGNode", "Label")
+    lbl.id        = "addLabel"
+    lbl.text      = "+"
+    lbl.width     = 64
+    lbl.height    = 64
+    lbl.horizAlign = "center"
+    lbl.vertAlign  = "center"
+    lbl.font      = "font:LargeBoldSystemFont"
+    lbl.color     = "0xFFFFFFFF"
+    lbl.translation = [0, 0]
+    grp.appendChild(lbl)
+
+    m.top.appendChild(grp)
+    m.addPlayerBox = grp
+    positionAddPlayerBox()
+end sub
+
+sub positionAddPlayerBox()
+    if m.addPlayerBox = invalid then return
+    n = m.panels.count()
+    if n = 0 then return
+    lastX = m.panels[n - 1].translation[0]
+    xPos  = lastX + m.panelWidth + 20
+    yPos  = 120 + 310   ' vertically centred in the 680px panel area
+    m.addPlayerBox.translation = [xPos, yPos]
+end sub
+
+sub updateAddPlayerBoxHighlight()
+    if m.addPlayerBox = invalid then return
+    inner = m.addPlayerBox.findNode("addInner")
+    lbl   = m.addPlayerBox.findNode("addLabel")
+    if m.focusedIdx = m.panels.count()
+        inner.color = "0xD4AF37FF"   ' gold = focused
+        lbl.color   = "0x000000FF"   ' black text on gold
+    else
+        inner.color = "0x555555FF"   ' grey = unfocused
+        lbl.color   = "0xFFFFFFFF"
+    end if
 end sub
 
 ' ---- score helpers -------------------------------------------------------
@@ -51,7 +190,6 @@ function computeTotal(scores as object) as integer
     return total
 end function
 
-' Returns the first visible array index, scrolled to keep cursorIdx in view.
 function computeOffset(scores as object, cursorIdx as integer) as integer
     startIdx = scores.count() - 6
     if startIdx < 0 then startIdx = 0
@@ -64,7 +202,7 @@ end function
 
 function formatRoundScores(scores as object, startIdx as integer) as string
     if scores.count() = 0 then return ""
-    text = ""
+    text   = ""
     endIdx = startIdx + 5
     if endIdx >= scores.count() then endIdx = scores.count() - 1
     for i = startIdx to endIdx
@@ -77,120 +215,94 @@ function formatRoundScores(scores as object, startIdx as integer) as string
     return text
 end function
 
+sub pushScores()
+    for i = 0 to m.panels.count() - 1
+        m.offsets[i] = computeOffset(m.scores[i], m.cursors[i])
+        m.panels[i].score       = computeTotal(m.scores[i])
+        m.panels[i].roundOffset = m.offsets[i]
+        m.panels[i].roundScores = formatRoundScores(m.scores[i], m.offsets[i])
+    next
+end sub
+
 ' ---- rendering helpers ---------------------------------------------------
 
 sub refreshFocusRings()
-    m.leftPanel.focused = (m.focusedTeam = "left")
-    m.rightPanel.focused = (m.focusedTeam = "right")
+    for i = 0 to m.panels.count() - 1
+        m.panels[i].focused = (i = m.focusedIdx)
+    next
+    updateAddPlayerBoxHighlight()
+end sub
+
+sub syncCursorDisplays()
+    for i = 0 to m.panels.count() - 1
+        if i = m.focusedIdx
+            m.panels[i].cursorIndex = m.cursors[i]
+        else
+            m.panels[i].cursorIndex = -1
+        end if
+    next
 end sub
 
 sub refreshHint()
     if m.editMode
         m.hintLabel.text = "Up/Down: adjust score   OK / Back: done"
     else
-        m.hintLabel.text = "Up/Down: select   OK: edit / add / rename   *: delete round   Left/Right: switch"
+        m.hintLabel.text = "Up/Down: select   OK: edit/add/rename   *: delete   Left/Right: switch"
     end if
-end sub
-
-' Push score totals and visible round history to both panels.
-sub pushScores()
-    m.leftOffset = computeOffset(m.leftScores, m.leftCursor)
-    m.leftPanel.score = computeTotal(m.leftScores)
-    m.leftPanel.roundOffset = m.leftOffset
-    m.leftPanel.roundScores = formatRoundScores(m.leftScores, m.leftOffset)
-
-    m.rightOffset = computeOffset(m.rightScores, m.rightCursor)
-    m.rightPanel.score = computeTotal(m.rightScores)
-    m.rightPanel.roundOffset = m.rightOffset
-    m.rightPanel.roundScores = formatRoundScores(m.rightScores, m.rightOffset)
 end sub
 
 ' ---- navigate helpers ----------------------------------------------------
 
-' Cursor values: -2 = name, 0..count-1 = rounds, count = append slot.
 sub moveCursor(direction as string)
-    if m.focusedTeam = "left"
-        cur = m.leftCursor
-        count = m.leftScores.count()
-        if direction = "up"
-            if cur = -2
-                ' already at name, no move
-            else if cur = 0
-                cur = -2  ' first round → name
-            else if cur > 0
-                cur = cur - 1
-            else if cur = count
-                if count > 0 then cur = count - 1 else cur = -2
-            end if
-        else
-            if cur = -2
-                if count > 0 then cur = 0 else cur = count
-            else if cur >= 0 and cur < count
-                cur = cur + 1
-            end if
-            ' cur = count (append): no move
+    if m.focusedIdx >= m.panels.count() then return
+
+    cur   = m.cursors[m.focusedIdx]
+    count = m.scores[m.focusedIdx].count()
+
+    if direction = "up"
+        if cur = -2
+            ' already at name, no move
+        else if cur = 0
+            cur = -2
+        else if cur > 0
+            cur = cur - 1
+        else if cur = count
+            if count > 0 then cur = count - 1 else cur = -2
         end if
-        m.leftCursor = cur
-        newOffset = computeOffset(m.leftScores, m.leftCursor)
-        if newOffset <> m.leftOffset
-            m.leftOffset = newOffset
-            m.leftPanel.roundOffset = newOffset
-            m.leftPanel.roundScores = formatRoundScores(m.leftScores, newOffset)
-        end if
-        m.leftPanel.cursorIndex = m.leftCursor
     else
-        cur = m.rightCursor
-        count = m.rightScores.count()
-        if direction = "up"
-            if cur = -2
-            else if cur = 0
-                cur = -2
-            else if cur > 0
-                cur = cur - 1
-            else if cur = count
-                if count > 0 then cur = count - 1 else cur = -2
-            end if
-        else
-            if cur = -2
-                if count > 0 then cur = 0 else cur = count
-            else if cur >= 0 and cur < count
-                cur = cur + 1
-            end if
+        if cur = -2
+            if count > 0 then cur = 0 else cur = count
+        else if cur >= 0 and cur < count
+            cur = cur + 1
         end if
-        m.rightCursor = cur
-        newOffset = computeOffset(m.rightScores, m.rightCursor)
-        if newOffset <> m.rightOffset
-            m.rightOffset = newOffset
-            m.rightPanel.roundOffset = newOffset
-            m.rightPanel.roundScores = formatRoundScores(m.rightScores, newOffset)
-        end if
-        m.rightPanel.cursorIndex = m.rightCursor
+        ' cur = count (append): no move
     end if
+
+    m.cursors[m.focusedIdx] = cur
+    newOffset = computeOffset(m.scores[m.focusedIdx], cur)
+    if newOffset <> m.offsets[m.focusedIdx]
+        m.offsets[m.focusedIdx] = newOffset
+        m.panels[m.focusedIdx].roundOffset  = newOffset
+        m.panels[m.focusedIdx].roundScores  = formatRoundScores(m.scores[m.focusedIdx], newOffset)
+    end if
+    m.panels[m.focusedIdx].cursorIndex = cur
 end sub
 
 sub exitEditMode()
     m.editMode = false
-    m.leftPanel.editMode = false
-    m.rightPanel.editMode = false
-    ' Move cursor to the append slot so the next OK adds a new round.
-    if m.focusedTeam = "left"
-        m.leftCursor = m.leftScores.count()
-        newOffset = computeOffset(m.leftScores, m.leftCursor)
-        if newOffset <> m.leftOffset
-            m.leftOffset = newOffset
-            m.leftPanel.roundOffset = newOffset
-            m.leftPanel.roundScores = formatRoundScores(m.leftScores, newOffset)
+    for i = 0 to m.panels.count() - 1
+        m.panels[i].editMode = false
+    next
+    if m.focusedIdx < m.panels.count()
+        count = m.scores[m.focusedIdx].count()
+        m.cursors[m.focusedIdx] = count
+        newOffset = computeOffset(m.scores[m.focusedIdx], count)
+        if newOffset <> m.offsets[m.focusedIdx]
+            m.offsets[m.focusedIdx] = newOffset
+            m.panels[m.focusedIdx].roundOffset = newOffset
+            m.panels[m.focusedIdx].roundScores = formatRoundScores(m.scores[m.focusedIdx], newOffset)
         end if
-        m.leftPanel.cursorIndex = m.leftCursor
-    else
-        m.rightCursor = m.rightScores.count()
-        newOffset = computeOffset(m.rightScores, m.rightCursor)
-        if newOffset <> m.rightOffset
-            m.rightOffset = newOffset
-            m.rightPanel.roundOffset = newOffset
-            m.rightPanel.roundScores = formatRoundScores(m.rightScores, newOffset)
-        end if
-        m.rightPanel.cursorIndex = m.rightCursor
+        m.panels[m.focusedIdx].cursorIndex = count
     end if
     stopRepeatTimers()
     refreshHint()
@@ -198,143 +310,99 @@ end sub
 
 sub stopRepeatTimers()
     m.repeatDelayTimer.control = "stop"
-    m.repeatTimer.control = "stop"
+    m.repeatTimer.control      = "stop"
     m.repeatAccelTimer.control = "stop"
     m.repeatDirection = ""
-    m.repeatFast = false
+    m.repeatFast      = false
 end sub
 
-' ---- up/down logic (shared by key press and hold timer) -----------------
+' ---- up/down logic -------------------------------------------------------
 
 sub applyUpDown(direction as string)
+    if m.focusedIdx >= m.panels.count() then return
     delta = 1
     if m.repeatFast then delta = 10
 
-    if m.focusedTeam = "left"
-        if m.leftScores.count() = 0 then return
-        idx = m.leftCursor
-        if idx < 0 or idx >= m.leftScores.count() then return
-        if direction = "up"
-            m.leftScores[idx] = m.leftScores[idx] + delta
-        else
-            newVal = m.leftScores[idx] - delta
-            if newVal < 0 then newVal = 0
-            m.leftScores[idx] = newVal
-        end if
+    scores = m.scores[m.focusedIdx]
+    if scores.count() = 0 then return
+    idx = m.cursors[m.focusedIdx]
+    if idx < 0 or idx >= scores.count() then return
+
+    if direction = "up"
+        m.scores[m.focusedIdx][idx] = scores[idx] + delta
     else
-        if m.rightScores.count() = 0 then return
-        idx = m.rightCursor
-        if idx < 0 or idx >= m.rightScores.count() then return
-        if direction = "up"
-            m.rightScores[idx] = m.rightScores[idx] + delta
-        else
-            newVal = m.rightScores[idx] - delta
-            if newVal < 0 then newVal = 0
-            m.rightScores[idx] = newVal
-        end if
+        newVal = scores[idx] - delta
+        if newVal < 0 then newVal = 0
+        m.scores[m.focusedIdx][idx] = newVal
     end if
     pushScores()
 end sub
 
 sub onRepeatDelayTimerFire()
-    if m.repeatDirection <> ""
-        m.repeatTimer.control = "start"
-    end if
+    if m.repeatDirection <> "" then m.repeatTimer.control = "start"
 end sub
 
 sub onRepeatTimerFire()
-    if m.repeatDirection <> ""
-        applyUpDown(m.repeatDirection)
-    end if
+    if m.repeatDirection <> "" then applyUpDown(m.repeatDirection)
 end sub
 
 sub onRepeatAccelTimerFire()
     if m.repeatDirection = "" then return
+    if m.focusedIdx >= m.panels.count() then return
     m.repeatFast = true
 
-    if m.focusedTeam = "left"
-        if m.leftScores.count() = 0 then return
-        idx = m.leftCursor
-        if idx < 0 or idx >= m.leftScores.count() then return
-        val = m.leftScores[idx]
-        if m.repeatDirection = "up"
-            m.leftScores[idx] = (val \ 10 + 1) * 10
-        else
-            if val mod 10 = 0
-                snapped = val - 10
-            else
-                snapped = (val \ 10) * 10
-            end if
-            if snapped < 0 then snapped = 0
-            m.leftScores[idx] = snapped
-        end if
+    scores = m.scores[m.focusedIdx]
+    if scores.count() = 0 then return
+    idx = m.cursors[m.focusedIdx]
+    if idx < 0 or idx >= scores.count() then return
+
+    val = scores[idx]
+    if m.repeatDirection = "up"
+        m.scores[m.focusedIdx][idx] = (val \ 10 + 1) * 10
     else
-        if m.rightScores.count() = 0 then return
-        idx = m.rightCursor
-        if idx < 0 or idx >= m.rightScores.count() then return
-        val = m.rightScores[idx]
-        if m.repeatDirection = "up"
-            m.rightScores[idx] = (val \ 10 + 1) * 10
+        if val mod 10 = 0
+            snapped = val - 10
         else
-            if val mod 10 = 0
-                snapped = val - 10
-            else
-                snapped = (val \ 10) * 10
-            end if
-            if snapped < 0 then snapped = 0
-            m.rightScores[idx] = snapped
+            snapped = (val \ 10) * 10
         end if
+        if snapped < 0 then snapped = 0
+        m.scores[m.focusedIdx][idx] = snapped
     end if
     pushScores()
 end sub
 
 ' ---- delete round dialog -------------------------------------------------
 
-sub openDeleteDialogForFocusedTeam()
-    if m.focusedTeam = "left"
-        idx = m.leftCursor
-        if idx < 0 or idx >= m.leftScores.count() then return
-    else
-        idx = m.rightCursor
-        if idx < 0 or idx >= m.rightScores.count() then return
-    end if
+sub openDeleteRoundDialog()
+    if m.focusedIdx >= m.panels.count() then return
+    idx    = m.cursors[m.focusedIdx]
+    scores = m.scores[m.focusedIdx]
+    if idx < 0 or idx >= scores.count() then return
 
     dialog = CreateObject("roSGNode", "Dialog")
     dialog.title = "Delete Round " + (idx + 1).toStr() + "?"
     dialog.buttons = ["Delete", "Cancel"]
-    dialog.buttonFocused = 1  ' default focus on Cancel so Back = Cancel
+    dialog.buttonFocused = 1
     m.top.getScene().appendChild(dialog)
     m.deleteDialog = dialog
-    dialog.observeField("buttonSelected", "onDeleteDialogButtonSelected")
+    dialog.observeField("buttonSelected", "onDeleteRoundButtonSelected")
     dialog.setFocus(true)
 end sub
 
-sub onDeleteDialogButtonSelected()
-    if m.deleteDialog.buttonSelected = 0  ' Delete
-        if m.focusedTeam = "left"
-            idx = m.leftCursor
-            if idx >= 0 and idx < m.leftScores.count()
-                newScores = []
-                for i = 0 to m.leftScores.count() - 1
-                    if i <> idx then newScores.push(m.leftScores[i])
-                next
-                m.leftScores = newScores
-                m.leftCursor = m.leftScores.count()  ' move to append
-                pushScores()
-                m.leftPanel.cursorIndex = m.leftCursor
-            end if
-        else
-            idx = m.rightCursor
-            if idx >= 0 and idx < m.rightScores.count()
-                newScores = []
-                for i = 0 to m.rightScores.count() - 1
-                    if i <> idx then newScores.push(m.rightScores[i])
-                next
-                m.rightScores = newScores
-                m.rightCursor = m.rightScores.count()
-                pushScores()
-                m.rightPanel.cursorIndex = m.rightCursor
-            end if
+sub onDeleteRoundButtonSelected()
+    if m.deleteDialog.buttonSelected = 0
+        pi  = m.focusedIdx
+        idx = m.cursors[pi]
+        scores = m.scores[pi]
+        if idx >= 0 and idx < scores.count()
+            newScores = []
+            for i = 0 to scores.count() - 1
+                if i <> idx then newScores.push(scores[i])
+            next
+            m.scores[pi]  = newScores
+            m.cursors[pi] = newScores.count()   ' move to append slot
+            pushScores()
+            m.panels[pi].cursorIndex = m.cursors[pi]
         end if
     end if
     m.top.getScene().removeChild(m.deleteDialog)
@@ -342,9 +410,109 @@ sub onDeleteDialogButtonSelected()
     m.top.setFocus(true)
 end sub
 
-' ---- name entry (keyboard dialog) ----------------------------------------
+' ---- delete player dialog ------------------------------------------------
 
-sub openNameEntryForFocusedTeam()
+sub openDeletePlayerDialog()
+    if m.panels.count() <= 1 then return   ' can't delete last player
+    if m.focusedIdx >= m.panels.count() then return
+
+    name = m.names[m.focusedIdx]
+    dialog = CreateObject("roSGNode", "Dialog")
+    dialog.title = "Delete " + name + "?"
+    dialog.buttons = ["Delete", "Cancel"]
+    dialog.buttonFocused = 1
+    m.top.getScene().appendChild(dialog)
+    m.confirmDialog = dialog
+    dialog.observeField("buttonSelected", "onDeletePlayerButtonSelected")
+    dialog.setFocus(true)
+end sub
+
+sub onDeletePlayerButtonSelected()
+    if m.confirmDialog.buttonSelected = 0 then deletePlayer(m.focusedIdx)
+    m.top.getScene().removeChild(m.confirmDialog)
+    m.confirmDialog = invalid
+    m.top.setFocus(true)
+end sub
+
+sub deletePlayer(pi as integer)
+    if m.panels.count() <= 1 then return
+    if pi < 0 or pi >= m.panels.count() then return
+
+    m.top.removeChild(m.panels[pi])
+
+    newPanels  = []
+    newScores  = []
+    newNames   = []
+    newCursors = []
+    newOffsets = []
+    for i = 0 to m.panels.count() - 1
+        if i <> pi
+            newPanels.push(m.panels[i])
+            newScores.push(m.scores[i])
+            newNames.push(m.names[i])
+            newCursors.push(m.cursors[i])
+            newOffsets.push(m.offsets[i])
+        end if
+    next
+    m.panels  = newPanels
+    m.scores  = newScores
+    m.names   = newNames
+    m.cursors = newCursors
+    m.offsets = newOffsets
+
+    if m.focusedIdx >= m.panels.count()
+        m.focusedIdx = m.panels.count() - 1
+    end if
+
+    if m.panels.count() < 8 and m.addPlayerBox = invalid
+        createAddPlayerBox()
+    end if
+
+    relayoutPanels()
+    refreshFocusRings()
+    pushScores()
+    syncCursorDisplays()
+end sub
+
+' ---- add player ----------------------------------------------------------
+
+sub addPlayer()
+    n = m.panels.count()
+    if n >= 8 then return
+
+    panel = CreateObject("roSGNode", "TeamPanel")
+    panel.panelWidth  = m.panelWidth
+    name = "PLAYER " + (n + 1).toStr()
+    panel.teamName    = name
+    panel.cursorIndex = -1
+    panel.focused     = false
+    m.top.appendChild(panel)
+
+    m.panels.push(panel)
+    m.scores.push([])
+    m.names.push(name)
+    m.cursors.push(0)
+    m.offsets.push(0)
+
+    if m.panels.count() >= 8 and m.addPlayerBox <> invalid
+        m.top.removeChild(m.addPlayerBox)
+        m.addPlayerBox = invalid
+    end if
+
+    relayoutPanels()
+
+    m.focusedIdx = m.panels.count() - 1
+    m.editMode   = false
+    refreshFocusRings()
+    pushScores()
+    syncCursorDisplays()
+    refreshHint()
+end sub
+
+' ---- rename dialog -------------------------------------------------------
+
+sub openNameEntryForFocused()
+    if m.focusedIdx >= m.panels.count() then return
     dialog = CreateObject("roSGNode", "KeyboardDialog")
     dialog.title = "Rename Player"
     dialog.buttons = ["OK", "Cancel"]
@@ -355,16 +523,11 @@ sub openNameEntryForFocusedTeam()
 end sub
 
 sub onNameEntryButtonSelected()
-    if m.keyboardDialog.buttonSelected = 0  ' OK
+    if m.keyboardDialog.buttonSelected = 0
         newName = UCase(m.keyboardDialog.keyboard.text.trim())
-        if newName <> ""
-            if m.focusedTeam = "left"
-                m.leftName = newName
-                m.leftPanel.teamName = newName
-            else
-                m.rightName = newName
-                m.rightPanel.teamName = newName
-            end if
+        if newName <> "" and m.focusedIdx < m.panels.count()
+            m.names[m.focusedIdx]         = newName
+            m.panels[m.focusedIdx].teamName = newName
         end if
     end if
     m.top.getScene().removeChild(m.keyboardDialog)
@@ -375,12 +538,11 @@ end sub
 ' ---- remote input --------------------------------------------------------
 
 function onKeyEvent(key as string, press as boolean) as boolean
-    ' Up/Down handled on both press and release (timers need the release event).
     if key = "up" or key = "down"
         if m.editMode
             if press
                 m.repeatDirection = key
-                m.repeatFast = false
+                m.repeatFast      = false
                 applyUpDown(key)
                 m.repeatDelayTimer.control = "start"
                 m.repeatAccelTimer.control = "start"
@@ -388,7 +550,7 @@ function onKeyEvent(key as string, press as boolean) as boolean
                 stopRepeatTimers()
             end if
         else
-            if press then moveCursor(key)
+            if press and m.focusedIdx < m.panels.count() then moveCursor(key)
         end if
         return true
     end if
@@ -396,47 +558,40 @@ function onKeyEvent(key as string, press as boolean) as boolean
     if not press then return false
 
     handled = true
+    n = m.panels.count()
 
-    if key = "left" or key = "right"
+    if key = "left"
         if m.editMode then exitEditMode()
-        m.focusedTeam = key
-        if m.focusedTeam = "left"
-            m.leftPanel.cursorIndex = m.leftCursor
-            m.rightPanel.cursorIndex = -1
-        else
-            m.rightPanel.cursorIndex = m.rightCursor
-            m.leftPanel.cursorIndex = -1
-        end if
+        if m.focusedIdx > 0 then m.focusedIdx = m.focusedIdx - 1
+        syncCursorDisplays()
+        refreshFocusRings()
+
+    else if key = "right"
+        if m.editMode then exitEditMode()
+        maxIdx = n - 1
+        if n < 8 then maxIdx = n   ' add-player slot is reachable
+        if m.focusedIdx < maxIdx then m.focusedIdx = m.focusedIdx + 1
+        syncCursorDisplays()
         refreshFocusRings()
 
     else if key = "OK"
-        if m.editMode
+        if m.focusedIdx = n and n < 8
+            addPlayer()
+        else if m.editMode
             exitEditMode()
         else
-            focusCursor = m.leftCursor
-            if m.focusedTeam = "right" then focusCursor = m.rightCursor
-            if focusCursor = -2
-                openNameEntryForFocusedTeam()
+            cur = m.cursors[m.focusedIdx]
+            if cur = -2
+                openNameEntryForFocused()
             else
-                if m.focusedTeam = "left"
-                    if m.leftCursor >= m.leftScores.count()
-                        m.leftScores.push(0)
-                        m.leftCursor = m.leftScores.count() - 1
-                        pushScores()
-                    end if
-                    m.editMode = true
-                    m.leftPanel.cursorIndex = m.leftCursor
-                    m.leftPanel.editMode = true
-                else
-                    if m.rightCursor >= m.rightScores.count()
-                        m.rightScores.push(0)
-                        m.rightCursor = m.rightScores.count() - 1
-                        pushScores()
-                    end if
-                    m.editMode = true
-                    m.rightPanel.cursorIndex = m.rightCursor
-                    m.rightPanel.editMode = true
+                if cur >= m.scores[m.focusedIdx].count()
+                    m.scores[m.focusedIdx].push(0)
+                    m.cursors[m.focusedIdx] = m.scores[m.focusedIdx].count() - 1
+                    pushScores()
                 end if
+                m.editMode = true
+                m.panels[m.focusedIdx].cursorIndex = m.cursors[m.focusedIdx]
+                m.panels[m.focusedIdx].editMode    = true
                 refreshHint()
             end if
         end if
@@ -450,19 +605,18 @@ function onKeyEvent(key as string, press as boolean) as boolean
 
     else if key = "options"
         if m.editMode
-            handled = true  ' consume * in edit mode
-        else
-            focusCursor = m.leftCursor
-            focusCount = m.leftScores.count()
-            if m.focusedTeam = "right"
-                focusCursor = m.rightCursor
-                focusCount = m.rightScores.count()
-            end if
-            if focusCursor >= 0 and focusCursor < focusCount
-                openDeleteDialogForFocusedTeam()
+            handled = true   ' consume * in edit mode
+        else if m.focusedIdx < n
+            cur = m.cursors[m.focusedIdx]
+            if cur = -2
+                openDeletePlayerDialog()
+            else if cur >= 0 and cur < m.scores[m.focusedIdx].count()
+                openDeleteRoundDialog()
             else
                 handled = false
             end if
+        else
+            handled = false
         end if
 
     else

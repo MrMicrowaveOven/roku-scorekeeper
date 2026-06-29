@@ -3,21 +3,21 @@
 
 <!--
     TeamPanel — renders a team name, per-round score history, and total.
-    Written once, instantiated twice (left/right) by Scoreboard.
-    Exposes "teamName", "score" (total), and "roundScores" (newline-
-    separated history string) as public fields. Scoreboard drives all
-    three; no game logic lives here.
+    Written once, instantiated N times by Scoreboard.
+    Exposes "teamName", "score", "roundScores", "panelWidth", etc. as
+    public fields. Scoreboard drives all of them; no game logic lives here.
     -->
 <component name="TeamPanel" extends="Group">
 
     <interface>
-        <field id="teamName" type="string" onChange="onTeamNameChange" />
-        <field id="score" type="integer" value="0" onChange="onScoreChange" />
-        <field id="roundScores" type="string" value="" onChange="onRoundScoresChange" />
+        <field id="panelWidth" type="integer" value="420" onChange="onPanelWidthChange" />
+        <field id="teamName"   type="string"  value=""    onChange="onTeamNameChange" />
+        <field id="score"      type="integer" value="0"   onChange="onScoreChange" />
+        <field id="roundScores" type="string" value=""    onChange="onRoundScoresChange" />
         <field id="roundOffset" type="integer" value="0" />
         <field id="cursorIndex" type="integer" value="-1" onChange="onCursorIndexChange" />
-        <field id="editMode" type="boolean" value="false" onChange="onEditModeChange" />
-        <field id="focused" type="boolean" value="false" onChange="onFocusedChange" />
+        <field id="editMode"   type="boolean" value="false" onChange="onEditModeChange" />
+        <field id="focused"    type="boolean" value="false" onChange="onFocusedChange" />
     </interface>
 
     <script type="text/brightscript" uri="pkg:/components/TeamPanel.brs" />
@@ -38,6 +38,7 @@
             font="font:LargeBoldSystemFont" />
 
         <Rectangle
+            id="divider1"
             translation="[40, 76]"
             width="340"
             height="2"
@@ -48,6 +49,7 @@
             translation="[40, 86]" />
 
         <Rectangle
+            id="divider2"
             translation="[40, 608]"
             width="340"
             height="2"

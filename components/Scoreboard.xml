@@ -2,12 +2,14 @@
 <!--********** Copyright 2026  All Rights Reserved. **********-->
 
 <!--
-    Scoreboard — owns all game state (leftScore, rightScore, which
-    team is focused) and all remote-key handling. TeamPanel and
-    NumberEntry are purely presentational; they just render fields
-    Scoreboard sets on them.
+    Scoreboard — owns all game state and remote-key handling.
+    TeamPanel instances are created dynamically based on playerCount.
     -->
 <component name="Scoreboard" extends="Group">
+
+    <interface>
+        <field id="playerCount" type="integer" value="0" onChange="onPlayerCountChange" />
+    </interface>
 
     <script type="text/brightscript" uri="pkg:/components/Scoreboard.brs" />
 
@@ -20,30 +22,12 @@
             text="SCOREKEEPER"
             font="font:LargeBoldSystemFont" />
 
-        <TeamPanel
-            id="leftPanel"
-            translation="[160, 120]"
-            teamName="PLAYER 1" />
-
-        <Label
-            translation="[930, 450]"
-            width="60"
-            height="60"
-            horizAlign="center"
-            text="-" />
-
-        <TeamPanel
-            id="rightPanel"
-            translation="[1340, 120]"
-            teamName="PLAYER 2" />
-
         <Label
             translation="[360, 870]"
             width="1200"
             height="40"
             horizAlign="center"
             id="hintLabel"
-            text="Up/Down: select round   OK: edit / add   Left/Right: switch   *: rename"
             font="font:SmallSystemFont" />
 
         <Timer id="repeatDelayTimer" duration="0.5" repeat="false" />
