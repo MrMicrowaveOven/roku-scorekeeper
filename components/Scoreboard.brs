@@ -15,6 +15,7 @@ sub init()
     ' "left" or "right" — which team is focused.
     m.focusedTeam = "left"
     m.keyboardDialog = invalid
+    m.deleteDialog = invalid
 
     ' Cursor index into the scores array. count() = "append new round" slot.
     m.leftCursor = 0
@@ -87,7 +88,7 @@ sub refreshHint()
     if m.editMode
         m.hintLabel.text = "Up/Down: adjust score   OK / Back: done"
     else
-        m.hintLabel.text = "Up/Down: select round   OK: edit / add   Left/Right: switch   *: rename"
+        m.hintLabel.text = "Up/Down: select   OK: edit / add / rename   *: delete round   Left/Right: switch"
     end if
 end sub
 
@@ -106,14 +107,30 @@ end sub
 
 ' ---- navigate helpers ----------------------------------------------------
 
+' Cursor values: -2 = name, 0..count-1 = rounds, count = append slot.
 sub moveCursor(direction as string)
     if m.focusedTeam = "left"
-        maxIdx = m.leftScores.count()
+        cur = m.leftCursor
+        count = m.leftScores.count()
         if direction = "up"
-            if m.leftCursor > 0 then m.leftCursor = m.leftCursor - 1
+            if cur = -2
+                ' already at name, no move
+            else if cur = 0
+                cur = -2  ' first round → name
+            else if cur > 0
+                cur = cur - 1
+            else if cur = count
+                if count > 0 then cur = count - 1 else cur = -2
+            end if
         else
-            if m.leftCursor < maxIdx then m.leftCursor = m.leftCursor + 1
+            if cur = -2
+                if count > 0 then cur = 0 else cur = count
+            else if cur >= 0 and cur < count
+                cur = cur + 1
+            end if
+            ' cur = count (append): no move
         end if
+        m.leftCursor = cur
         newOffset = computeOffset(m.leftScores, m.leftCursor)
         if newOffset <> m.leftOffset
             m.leftOffset = newOffset
@@ -122,12 +139,25 @@ sub moveCursor(direction as string)
         end if
         m.leftPanel.cursorIndex = m.leftCursor
     else
-        maxIdx = m.rightScores.count()
+        cur = m.rightCursor
+        count = m.rightScores.count()
         if direction = "up"
-            if m.rightCursor > 0 then m.rightCursor = m.rightCursor - 1
+            if cur = -2
+            else if cur = 0
+                cur = -2
+            else if cur > 0
+                cur = cur - 1
+            else if cur = count
+                if count > 0 then cur = count - 1 else cur = -2
+            end if
         else
-            if m.rightCursor < maxIdx then m.rightCursor = m.rightCursor + 1
+            if cur = -2
+                if count > 0 then cur = 0 else cur = count
+            else if cur >= 0 and cur < count
+                cur = cur + 1
+            end if
         end if
+        m.rightCursor = cur
         newOffset = computeOffset(m.rightScores, m.rightCursor)
         if newOffset <> m.rightOffset
             m.rightOffset = newOffset
@@ -258,6 +288,60 @@ sub onRepeatAccelTimerFire()
     pushScores()
 end sub
 
+' ---- delete round dialog -------------------------------------------------
+
+sub openDeleteDialogForFocusedTeam()
+    if m.focusedTeam = "left"
+        idx = m.leftCursor
+        if idx < 0 or idx >= m.leftScores.count() then return
+    else
+        idx = m.rightCursor
+        if idx < 0 or idx >= m.rightScores.count() then return
+    end if
+
+    dialog = CreateObject("roSGNode", "Dialog")
+    dialog.title = "Delete Round " + (idx + 1).toStr() + "?"
+    dialog.buttons = ["Delete", "Cancel"]
+    dialog.buttonFocused = 1  ' default focus on Cancel so Back = Cancel
+    m.top.getScene().appendChild(dialog)
+    m.deleteDialog = dialog
+    dialog.observeField("buttonSelected", "onDeleteDialogButtonSelected")
+    dialog.setFocus(true)
+end sub
+
+sub onDeleteDialogButtonSelected()
+    if m.deleteDialog.buttonSelected = 0  ' Delete
+        if m.focusedTeam = "left"
+            idx = m.leftCursor
+            if idx >= 0 and idx < m.leftScores.count()
+                newScores = []
+                for i = 0 to m.leftScores.count() - 1
+                    if i <> idx then newScores.push(m.leftScores[i])
+                next
+                m.leftScores = newScores
+                m.leftCursor = m.leftScores.count()  ' move to append
+                pushScores()
+                m.leftPanel.cursorIndex = m.leftCursor
+            end if
+        else
+            idx = m.rightCursor
+            if idx >= 0 and idx < m.rightScores.count()
+                newScores = []
+                for i = 0 to m.rightScores.count() - 1
+                    if i <> idx then newScores.push(m.rightScores[i])
+                next
+                m.rightScores = newScores
+                m.rightCursor = m.rightScores.count()
+                pushScores()
+                m.rightPanel.cursorIndex = m.rightCursor
+            end if
+        end if
+    end if
+    m.top.getScene().removeChild(m.deleteDialog)
+    m.deleteDialog = invalid
+    m.top.setFocus(true)
+end sub
+
 ' ---- name entry (keyboard dialog) ----------------------------------------
 
 sub openNameEntryForFocusedTeam()
@@ -329,26 +413,32 @@ function onKeyEvent(key as string, press as boolean) as boolean
         if m.editMode
             exitEditMode()
         else
-            if m.focusedTeam = "left"
-                if m.leftCursor >= m.leftScores.count()
-                    m.leftScores.push(0)
-                    m.leftCursor = m.leftScores.count() - 1
-                    pushScores()
-                end if
-                m.editMode = true
-                m.leftPanel.cursorIndex = m.leftCursor
-                m.leftPanel.editMode = true
+            focusCursor = m.leftCursor
+            if m.focusedTeam = "right" then focusCursor = m.rightCursor
+            if focusCursor = -2
+                openNameEntryForFocusedTeam()
             else
-                if m.rightCursor >= m.rightScores.count()
-                    m.rightScores.push(0)
-                    m.rightCursor = m.rightScores.count() - 1
-                    pushScores()
+                if m.focusedTeam = "left"
+                    if m.leftCursor >= m.leftScores.count()
+                        m.leftScores.push(0)
+                        m.leftCursor = m.leftScores.count() - 1
+                        pushScores()
+                    end if
+                    m.editMode = true
+                    m.leftPanel.cursorIndex = m.leftCursor
+                    m.leftPanel.editMode = true
+                else
+                    if m.rightCursor >= m.rightScores.count()
+                        m.rightScores.push(0)
+                        m.rightCursor = m.rightScores.count() - 1
+                        pushScores()
+                    end if
+                    m.editMode = true
+                    m.rightPanel.cursorIndex = m.rightCursor
+                    m.rightPanel.editMode = true
                 end if
-                m.editMode = true
-                m.rightPanel.cursorIndex = m.rightCursor
-                m.rightPanel.editMode = true
+                refreshHint()
             end if
-            refreshHint()
         end if
 
     else if key = "back"
@@ -359,7 +449,21 @@ function onKeyEvent(key as string, press as boolean) as boolean
         end if
 
     else if key = "options"
-        openNameEntryForFocusedTeam()
+        if m.editMode
+            handled = true  ' consume * in edit mode
+        else
+            focusCursor = m.leftCursor
+            focusCount = m.leftScores.count()
+            if m.focusedTeam = "right"
+                focusCursor = m.rightCursor
+                focusCount = m.rightScores.count()
+            end if
+            if focusCursor >= 0 and focusCursor < focusCount
+                openDeleteDialogForFocusedTeam()
+            else
+                handled = false
+            end if
+        end if
 
     else
         handled = false

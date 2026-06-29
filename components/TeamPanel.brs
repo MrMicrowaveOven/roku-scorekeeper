@@ -21,6 +21,11 @@ sub onRoundScoresChange()
 end sub
 
 sub onCursorIndexChange()
+    if m.top.cursorIndex = -2
+        m.nameLabel.color = "0x000000FF"  ' black on gold = name selected
+    else
+        m.nameLabel.color = "0xFFFFFFFF"
+    end if
     rebuildRounds()
 end sub
 
