@@ -1,81 +1,214 @@
 # Scorekeeper — Roku SceneGraph Channel
 
-A simple two-team scoreboard app for Roku. Remote-driven, with an
-on-screen number-entry overlay for direct score correction.
+A card-game scoreboard for Roku. Supports 1–8 players, remote-driven, with
+per-round score history, two-column overflow layout, and a number-entry overlay
+for direct score correction.
+
+---
+
+## Repackaging — ALWAYS use `comp`
+
+```bash
+comp
+```
+
+This shell alias zips the channel correctly. **Never use raw `zip` commands.**
+The alias is defined in the user's shell config. If it's missing, check `~/.zshrc`.
+
+---
 
 ## Architecture
 
 ```
 HomeScene (extends Scene)
 └── Scoreboard (extends Group)        — owns ALL game state + key handling
-    ├── TeamPanel "leftPanel"  (extends Group)  — presentational only
-    ├── TeamPanel "rightPanel" (extends Group)  — presentational only
-    └── NumberEntry (extends Group)             — presentational + own key handling while focused
+    ├── TeamPanel × N  (extends Group) — presentational only; N created dynamically
+    ├── addPlayerBox   (static Group)  — show/hide; Scoreboard positions it
+    └── NumberEntry    (extends Group) — presentational + own key handling while focused
 ```
 
-**Separation of concerns is deliberate and should be preserved:**
-- `Scoreboard.brs` is the single source of truth for `leftScore`, `rightScore`,
-  and which team is focused. It pushes values down to children via public
-  fields (`score`, `teamName`, `focused`). It owns `onKeyEvent` for d-pad
-  navigation/increment/decrement and opens/closes the `NumberEntry` overlay.
-- `TeamPanel.brs` has no game logic. It only reacts to field changes
-  (`onScoreChange`, `onTeamNameChange`, `onFocusedChange`) and updates its own
-  labels/focus ring. Don't add scoring rules here.
-- `NumberEntry.brs` owns key handling **only** while it holds focus (set
-  explicitly by `Scoreboard.brs` via `setFocus(true)` when opened). It
-  reports results back via the `confirmedValue` / `cancelled` fields, which
-  `Scoreboard.brs` observes.
+**Separation of concerns — preserve this:**
+- `Scoreboard.brs` is the single source of truth for all scores, player names,
+  cursors, and focus. It pushes values down to children via public fields. It owns
+  `onKeyEvent` for all d-pad navigation.
+- `TeamPanel.brs` has no game logic. It only reacts to field changes and redraws
+  itself. Don't add scoring rules here.
+- `NumberEntry.brs` owns key handling only while it holds focus (set explicitly by
+  `Scoreboard.brs`). It reports results back via `confirmedValue` / `cancelled`
+  fields that Scoreboard observes.
 
-Each `TeamPanel` instance is the same component, instantiated twice with
-different `id`, `translation`, and `teamName` — write shared UI pieces once,
-configure via fields/attributes, not by copy-pasting XML.
+TeamPanels are created dynamically in `setupPlayers(n)` via
+`CreateObject("roSGNode", "TeamPanel")` — there are no static `<TeamPanel>` tags in
+any XML file.
 
-## Known gotchas (hard-won today, don't relearn these)
+---
 
-1. **`ui_resolutions` in the manifest must match the coordinate space the
-   XML files are actually written for.** `hd` = 1280×720 design canvas,
-   `fhd` = 1920×1080. All current component XML files use FHD coordinates
-   (e.g. translations in the 1300–1900 range), so the manifest **must** say
-   `ui_resolutions=fhd`. Setting it to `hd` doesn't crash anything and
-   produces no console error — it just silently auto-scales every
-   coordinate against the wrong canvas size, which can push nodes
-   completely off-screen while making others look oversized. If a node
-   "isn't rendering" with no error in the console, check this first.
+## Cursor system (Scoreboard.brs)
 
-2. **Don't redeclare a node's built-in fields in `<interface>`.** Every
-   SceneGraph node already has fields like `visible`, `opacity`, etc.
-   Redeclaring `visible` with an `alias` (as an earlier draft of
-   `NumberEntry.xml` did) collides with the built-in field and silently
-   breaks visibility toggling. If you need an alias, give it a distinct
-   field name instead of overloading a built-in one.
+Each player has their own cursor index stored in `m.cursors[i]`:
 
-3. **macOS Sequoia (15.x) "Local Network" privacy permission** gates
-   per-app access to LAN devices, separately from any router/firewall
-   config. A blocked app gets a misleading `sendto: No route to host`
-   at the *network* layer — ARP, routing tables, and PF rules can all
-   look completely valid while this permission is the actual cause.
-   Check System Settings → Privacy & Security → Local Network if a
-   specific app (e.g. VS Code's integrated terminal) can't reach a LAN
-   device that other tools/devices reach fine.
+| Value | Meaning |
+|-------|---------|
+| `-2` | Name row (default on game start; opens rename dialog on OK) |
+| `-1` | No cursor shown (used when a panel does not have focus) |
+| `0..count-1` | A specific round row |
+| `count` | Append slot (the + button) |
 
-## Conventions for future components
+`syncCursorDisplays()` writes `m.cursors[focusedIdx]` to the focused panel and
+`-1` to all others. `syncDestCursor(sourceCursor)` mirrors a cursor value onto a
+newly-focused player, clamping if their round count differs.
 
-- New reusable UI pieces: presentational component (XML + BRS) with public
-  `<interface>` fields, instantiated by whatever owns the state — follow the
-  `TeamPanel` pattern.
-- Centralize game rules/state in the parent that owns the screen (currently
-  `Scoreboard.brs`), not in individual child components.
-- Keep coordinates consistent with `ui_resolutions=fhd` (1920×1080 canvas).
-- Icon/splash assets live in `images/` — `icon_focus_hd.png` (290×218) and
-  `splash_fhd.png` (1920×1080), referenced from `manifest`.
+**Cursor navigation rules:**
+- Down from name → round 0 (or append if no rounds)
+- Down from last round → append slot (blocked at max rounds, see below)
+- Up from round 0 → name
+- Up from append → last round
+
+---
+
+## Two-column layout (TeamPanel.brs — `rebuildRounds`)
+
+Triggered when `rounds.count() >= 10`.
+
+**Split point** (`splitAt`): `max(10, ceil(N/2))` where N = rounds.count().
+- Rounds 0 to splitAt-1 go in the left column.
+- Rounds splitAt+ go in the right column.
+- The append slot (or "Max rounds" notice) always appears at the bottom of the
+  right column.
+
+**Dynamic lineHeight** (shrinks once right column exceeds 10 rows):
+```
+leftSlots  = splitAt
+rightSlots = rounds.count() - splitAt + 1   (rounds + append slot)
+maxSlots   = max(leftSlots, rightSlots)
+lineHeight = clamp(int(650 / maxSlots), 36, 60)
+```
+Font drops from `LargeBoldSystemFont` to `MediumBoldSystemFont` when
+`lineHeight < 50`. Square size for the + button scales with lineHeight
+(`int(lineHeight * 0.65)`, clamped 20–40).
+
+**Available height for rounds:** 650px (roundsGroup y=102 to divider2 y=752).
+
+---
+
+## Max rounds cap (36)
+
+- At 36 rounds the + append slot is replaced by a muted "Max rounds" label.
+- The cursor is blocked from advancing past round 35 (`moveCursor` in Scoreboard.brs).
+- `exitEditMode` and `syncDestCursor` clamp the cursor to `count-1` instead of
+  `count` when `count >= 36`.
+- 36 is chosen because `int(650/18) = 36px` exactly hits the lineHeight floor.
+
+---
+
+## Panel layout by player count (`computeLayout` in Scoreboard.brs)
+
+| Players | contentLeft | contentWidth | minGap | Notes |
+|---------|-------------|--------------|--------|-------|
+| 1–2 | 160 | 1600 | — | fixed pw=420; 1-player centered, 2-player gap=500 |
+| 3–4 | 160 | 1600 | 10 | |
+| 5–6 | 80 | 1746 | 10 | leaves room for add-player button at right |
+| 7 | 20 | 1806 | 5 | panels end at x≈1826, add button fits to right |
+| 8 | 20 | 1880 | 5 | no add button (max players); uses nearly full width |
+
+`panelWidth = (contentWidth - (n-1)*minGap) / n`, clamped 150–800px.
+Panels are translated to `[panelStartX + i*(panelWidth+panelGap), 120]`.
+
+---
+
+## TeamPanel layout constants
+
+All coordinates are on a 1920×1080 FHD canvas.
+
+| Node | Position / Size |
+|------|----------------|
+| `focusRing` | width=panelWidth, height=820; gold `0xD4AF37FF` when focused |
+| `nameLabel` | translation=[margin, 20], height=50 |
+| `divider1` | translation=[margin, 76], height=2 |
+| `roundsGroup` | translation=[margin, 102] — rounds rendered here |
+| `divider2` | translation=[margin, 752], height=2 |
+| `totalLabel` | translation=[margin, 760], height=56, `LargeBoldSystemFont` |
+
+`margin` = `layoutMargin(panelWidth)`: pw≥400→40, pw≥250→20, else→10.
+`cw` (content width) = `panelWidth - 2*margin`.
+Divider2 and totalLabel always span full `cw` (even in two-column mode).
+
+---
+
+## Background
+
+`images/background_fhd.png` — user-provided poker-table green background image.
+Referenced from `HomeScene.xml` as a `<Poster>` node at 1920×1080.
+
+A Python/Pillow generation script lives at:
+`/private/tmp/claude-501/.../scratchpad/gen_bg.py`
+(session-specific path — regenerate from scratch if lost; the approach is
+documented in git history / prior conversation).
+
+`BackgroundDeco.xml` / `BackgroundDeco.brs` still exist in the zip but are unused.
+`HomeScene.xml` no longer references them.
+
+---
+
+## hintLabel
+
+Defined in `Scoreboard.xml` at `translation="[360, 990]"`.
+- Hidden (`visible=false`) in `init()` — not shown during the player-count dialog.
+- Shown (`visible=true`) in `onPlayerCountChange()` once a player count is chosen.
+- Text updates via `refreshHint()`: different text in edit mode vs. navigation mode.
+
+---
+
+## addPlayerBox
+
+Static group defined in `Scoreboard.xml`. Shown/hidden via `visible`.
+Positioned by `positionAddPlayerBox()`: `xPos = lastPanelX + panelWidth + 20`.
+Highlighted gold when `focusedIdx == panels.count()`, grey otherwise.
+Hidden automatically when player count reaches 8.
+
+---
+
+## Timers (repeat-hold for score adjustment)
+
+Three timers in `Scoreboard.xml`, all observed in `Scoreboard.brs`:
+- `repeatDelayTimer` (0.5s) — initial delay before repeat starts
+- `repeatTimer` (0.15s) — repeat interval
+- `repeatAccelTimer` (2.0s) — triggers ×10 step mode after hold
+
+---
+
+## Known gotchas
+
+1. **`ui_resolutions=fhd` in manifest is mandatory.** All XML uses FHD coordinates
+   (1920×1080). Setting it to `hd` silently scales everything against a 1280×720
+   canvas — nodes go off-screen with no console error. Check this first if any node
+   "isn't rendering."
+
+2. **Don't redeclare built-in node fields in `<interface>`.** Aliasing `visible`
+   collides with the built-in field and silently breaks visibility toggling. Use a
+   distinct name for any custom alias.
+
+3. **`onChange` only fires when the value actually changes.** If you set a field to
+   the same value it already holds, the observer won't fire. Force a change via a
+   sentinel value first if needed.
+
+4. **macOS Sequoia "Local Network" privacy permission** gates per-app LAN access
+   separately from router/firewall config. A blocked app gets `sendto: No route to
+   host` at the network layer even when ARP and routing tables look fine. Check
+   System Settings → Privacy & Security → Local Network if a specific app (e.g.
+   VS Code's terminal) can't reach the Roku while other tools can.
+
+5. **Poster URI must exactly match the filename in `images/`.** If a background
+   image isn't showing with no error, verify the `uri="pkg:/images/..."` in
+   `HomeScene.xml` matches the actual filename byte-for-byte.
+
+---
 
 ## Roadmap / not yet built
 
-- Multi-team support (currently hardcoded to exactly two `TeamPanel`
-  instances — will likely need dynamic node creation via
-  `CreateObject("roSGNode", "TeamPanel")` in a loop rather than static XML
-  children, plus a way to cycle focus across N teams instead of just
-  left/right).
-- Win detection / highlighting.
-- Score reset.
-- Persisting scores across channel restarts (`roRegistry`).
+- **Win detection / highlighting** — flag the player(s) with the highest total.
+- **Score reset** — return all scores to zero without re-entering player count.
+- **Persisting scores across restarts** — use `roRegistry`.
+- **NumberEntry overlay** — the component exists but is currently wired as a
+  direct-edit (up/down on a round); the full number-entry overlay flow may need
+  revisiting.
