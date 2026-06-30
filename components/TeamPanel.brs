@@ -107,23 +107,46 @@ sub rebuildRounds()
     cw     = pw - 2 * margin
     if cw < 30 then cw = 30
 
-    lineHeight       = 60
     cursorDisplayIdx = m.top.cursorIndex - m.top.roundOffset
     isEditMode       = m.top.editMode
 
-    twoCol   = (rounds.count() >= 10)
-    colGap   = 10
-    col1W    = int((cw - colGap) / 2)
-    col2X    = col1W + colGap
-    col2W    = cw - col2X
+    twoCol = (rounds.count() >= 10)
+    colGap = 10
+    col1W  = int((cw - colGap) / 2)
+    col2X  = col1W + colGap
+    col2W  = cw - col2X
+
+    ' Dynamic split and lineHeight for two-column mode.
+    ' splitAt grows so both columns fill together once col2 exceeds 10 rows.
+    ' lineHeight shrinks as needed; floor 36px; font drops at 50px.
+    lineHeight = 60
+    roundFont  = "font:LargeBoldSystemFont"
+    squareSize = 40
+    splitAt    = 10
+    if twoCol
+        ' ceil(N/2), but never below 10 — keeps the initial 10/0 split until col2 fills
+        splitAt    = int((rounds.count() + 1) / 2)
+        if splitAt < 10 then splitAt = 10
+        leftSlots  = splitAt
+        rightSlots = rounds.count() - splitAt + 1   ' right rounds + append button
+        maxSlots   = rightSlots
+        if leftSlots > maxSlots then maxSlots = leftSlots
+        lineHeight = int(650 / maxSlots)
+        if lineHeight > 60 then lineHeight = 60
+        if lineHeight < 36 then lineHeight = 36
+        if lineHeight < 50 then roundFont = "font:MediumBoldSystemFont"
+        squareSize = int(lineHeight * 0.65)
+        if squareSize > 40 then squareSize = 40
+        if squareSize < 20 then squareSize = 20
+    end if
 
     ' Divider and total always span the full content width
     m.divider2.width   = cw
     m.totalLabel.width = cw
 
     if twoCol
-        ' Left column: rounds 0-9
-        lastLeft = 9
+        ' Left column: rounds 0 to splitAt-1
+        lastLeft = splitAt - 1
         if lastLeft > rounds.count() - 1 then lastLeft = rounds.count() - 1
         for i = 0 to lastLeft
             lbl = CreateObject("roSGNode", "Label")
@@ -132,7 +155,7 @@ sub rebuildRounds()
             lbl.height      = lineHeight
             lbl.horizAlign  = "center"
             lbl.translation = [0, i * lineHeight]
-            lbl.font        = "font:LargeBoldSystemFont"
+            lbl.font        = roundFont
             if i = cursorDisplayIdx
                 if isEditMode
                     lbl.color = "0x00FFFFFF"
@@ -145,15 +168,15 @@ sub rebuildRounds()
             m.roundsGroup.appendChild(lbl)
         next
 
-        ' Right column: rounds 10+
-        for i = 10 to rounds.count() - 1
+        ' Right column: rounds splitAt+
+        for i = splitAt to rounds.count() - 1
             lbl = CreateObject("roSGNode", "Label")
             lbl.text        = rounds[i]
             lbl.width       = col2W
             lbl.height      = lineHeight
             lbl.horizAlign  = "center"
-            lbl.translation = [col2X, (i - 10) * lineHeight]
-            lbl.font        = "font:LargeBoldSystemFont"
+            lbl.translation = [col2X, (i - splitAt) * lineHeight]
+            lbl.font        = roundFont
             if i = cursorDisplayIdx
                 if isEditMode
                     lbl.color = "0x00FFFFFF"
@@ -166,11 +189,21 @@ sub rebuildRounds()
             m.roundsGroup.appendChild(lbl)
         next
 
-        ' Append slot in right column
-        if cursorDisplayIdx >= 0 and cursorDisplayIdx = rounds.count()
-            yPos       = (rounds.count() - 10) * lineHeight
-            squareSize = 40
-            squareX    = col2X + (col2W - squareSize) / 2
+        ' Append slot or max-rounds notice in right column
+        yPos = (rounds.count() - splitAt) * lineHeight
+        if rounds.count() >= 36
+            maxLbl = CreateObject("roSGNode", "Label")
+            maxLbl.text        = "Max rounds"
+            maxLbl.width       = col2W
+            maxLbl.height      = lineHeight
+            maxLbl.horizAlign  = "center"
+            maxLbl.vertAlign   = "center"
+            maxLbl.font        = "font:SmallBoldSystemFont"
+            maxLbl.color       = "0xFFFFFF50"
+            maxLbl.translation = [col2X, yPos]
+            m.roundsGroup.appendChild(maxLbl)
+        else if cursorDisplayIdx >= 0 and cursorDisplayIdx = rounds.count()
+            squareX = col2X + (col2W - squareSize) / 2
 
             outer = CreateObject("roSGNode", "Rectangle")
             outer.width       = squareSize
@@ -192,7 +225,7 @@ sub rebuildRounds()
             plusLbl.height      = lineHeight
             plusLbl.horizAlign  = "center"
             plusLbl.vertAlign   = "center"
-            plusLbl.font        = "font:LargeBoldSystemFont"
+            plusLbl.font        = roundFont
             plusLbl.color       = "0x000000FF"
             plusLbl.translation = [col2X, yPos - (lineHeight - squareSize) / 2]
             m.roundsGroup.appendChild(plusLbl)

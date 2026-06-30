@@ -258,7 +258,9 @@ sub syncDestCursor(sourceCursor as integer)
     else if sourceCursor >= 0 and sourceCursor < destCount
         m.cursors[m.focusedIdx] = sourceCursor   ' same round exists
     else
-        m.cursors[m.focusedIdx] = destCount       ' clamp to append slot
+        clampedTo = destCount
+        if clampedTo >= 36 then clampedTo = clampedTo - 1
+        m.cursors[m.focusedIdx] = clampedTo      ' clamp to append slot (or last round at max)
     end if
     newOffset = computeOffset(m.scores[m.focusedIdx], m.cursors[m.focusedIdx])
     m.offsets[m.focusedIdx] = newOffset
@@ -296,7 +298,8 @@ sub moveCursor(direction as string)
         else if cur >= 0 and cur < count
             cur = cur + 1
         end if
-        ' cur = count (append): no move
+        ' Block advance to phantom append slot when at max rounds
+        if cur = count and count >= 36 then cur = count - 1
     end if
 
     m.cursors[m.focusedIdx] = cur
@@ -315,15 +318,17 @@ sub exitEditMode()
         m.panels[i].editMode = false
     next
     if m.focusedIdx < m.panels.count()
-        count = m.scores[m.focusedIdx].count()
-        m.cursors[m.focusedIdx] = count
-        newOffset = computeOffset(m.scores[m.focusedIdx], count)
+        count    = m.scores[m.focusedIdx].count()
+        cursorTo = count
+        if count >= 36 then cursorTo = count - 1
+        m.cursors[m.focusedIdx] = cursorTo
+        newOffset = computeOffset(m.scores[m.focusedIdx], cursorTo)
         if newOffset <> m.offsets[m.focusedIdx]
             m.offsets[m.focusedIdx] = newOffset
             m.panels[m.focusedIdx].roundOffset = newOffset
             m.panels[m.focusedIdx].roundScores = formatRoundScores(m.scores[m.focusedIdx], newOffset)
         end if
-        m.panels[m.focusedIdx].cursorIndex = count
+        m.panels[m.focusedIdx].cursorIndex = cursorTo
     end if
     stopRepeatTimers()
     refreshHint()
@@ -421,8 +426,14 @@ sub onDeleteRoundButtonSelected()
             for i = 0 to scores.count() - 1
                 if i <> idx then newScores.push(scores[i])
             next
-            m.scores[pi]  = newScores
-            m.cursors[pi] = newScores.count()   ' move to append slot
+            m.scores[pi] = newScores
+            ' Stay at same position; if we deleted the last round, back up one
+            newCursor = idx
+            if newCursor >= newScores.count()
+                newCursor = newScores.count() - 1
+                if newCursor < 0 then newCursor = newScores.count()   ' no rounds left → append slot
+            end if
+            m.cursors[pi] = newCursor
             pushScores()
             m.panels[pi].cursorIndex = m.cursors[pi]
         end if
