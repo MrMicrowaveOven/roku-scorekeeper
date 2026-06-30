@@ -107,60 +107,149 @@ sub rebuildRounds()
     cw     = pw - 2 * margin
     if cw < 30 then cw = 30
 
-    lineHeight       = 80
+    lineHeight       = 60
     cursorDisplayIdx = m.top.cursorIndex - m.top.roundOffset
     isEditMode       = m.top.editMode
 
-    for i = 0 to rounds.count() - 1
-        lbl = CreateObject("roSGNode", "Label")
-        lbl.text       = rounds[i]
-        lbl.width      = cw
-        lbl.height     = lineHeight
-        lbl.horizAlign = "center"
-        lbl.translation = [0, i * lineHeight]
-        lbl.font       = "font:LargeBoldSystemFont"
-        if i = cursorDisplayIdx
-            if isEditMode
-                lbl.color = "0x00FFFFFF"   ' cyan = editing
+    twoCol   = (rounds.count() >= 10)
+    colGap   = 10
+    col1W    = int((cw - colGap) / 2)
+    col2X    = col1W + colGap
+    col2W    = cw - col2X
+
+    ' Divider and total always span the full content width
+    m.divider2.width   = cw
+    m.totalLabel.width = cw
+
+    if twoCol
+        ' Left column: rounds 0-9
+        lastLeft = 9
+        if lastLeft > rounds.count() - 1 then lastLeft = rounds.count() - 1
+        for i = 0 to lastLeft
+            lbl = CreateObject("roSGNode", "Label")
+            lbl.text        = rounds[i]
+            lbl.width       = col1W
+            lbl.height      = lineHeight
+            lbl.horizAlign  = "center"
+            lbl.translation = [0, i * lineHeight]
+            lbl.font        = "font:LargeBoldSystemFont"
+            if i = cursorDisplayIdx
+                if isEditMode
+                    lbl.color = "0x00FFFFFF"
+                else
+                    lbl.color = "0x000000FF"
+                end if
             else
-                lbl.color = "0x000000FF"   ' black = selected, not editing
+                lbl.color = "0xFFFFFFFF"
             end if
-        else
-            lbl.color = "0xFFFFFFFF"
+            m.roundsGroup.appendChild(lbl)
+        next
+
+        ' Right column: rounds 10+
+        for i = 10 to rounds.count() - 1
+            lbl = CreateObject("roSGNode", "Label")
+            lbl.text        = rounds[i]
+            lbl.width       = col2W
+            lbl.height      = lineHeight
+            lbl.horizAlign  = "center"
+            lbl.translation = [col2X, (i - 10) * lineHeight]
+            lbl.font        = "font:LargeBoldSystemFont"
+            if i = cursorDisplayIdx
+                if isEditMode
+                    lbl.color = "0x00FFFFFF"
+                else
+                    lbl.color = "0x000000FF"
+                end if
+            else
+                lbl.color = "0xFFFFFFFF"
+            end if
+            m.roundsGroup.appendChild(lbl)
+        next
+
+        ' Append slot in right column
+        if cursorDisplayIdx >= 0 and cursorDisplayIdx = rounds.count()
+            yPos       = (rounds.count() - 10) * lineHeight
+            squareSize = 40
+            squareX    = col2X + (col2W - squareSize) / 2
+
+            outer = CreateObject("roSGNode", "Rectangle")
+            outer.width       = squareSize
+            outer.height      = squareSize
+            outer.color       = "0x000000C0"
+            outer.translation = [squareX, yPos]
+            m.roundsGroup.appendChild(outer)
+
+            inner = CreateObject("roSGNode", "Rectangle")
+            inner.width       = squareSize - 6
+            inner.height      = squareSize - 6
+            inner.color       = "0xD4AF37FF"
+            inner.translation = [squareX + 3, yPos + 3]
+            m.roundsGroup.appendChild(inner)
+
+            plusLbl = CreateObject("roSGNode", "Label")
+            plusLbl.text        = "+"
+            plusLbl.width       = col2W
+            plusLbl.height      = lineHeight
+            plusLbl.horizAlign  = "center"
+            plusLbl.vertAlign   = "center"
+            plusLbl.font        = "font:LargeBoldSystemFont"
+            plusLbl.color       = "0x000000FF"
+            plusLbl.translation = [col2X, yPos - (lineHeight - squareSize) / 2]
+            m.roundsGroup.appendChild(plusLbl)
         end if
-        m.roundsGroup.appendChild(lbl)
-    next
+    else
+        ' Single column
+        for i = 0 to rounds.count() - 1
+            lbl = CreateObject("roSGNode", "Label")
+            lbl.text        = rounds[i]
+            lbl.width       = cw
+            lbl.height      = lineHeight
+            lbl.horizAlign  = "center"
+            lbl.translation = [0, i * lineHeight]
+            lbl.font        = "font:LargeBoldSystemFont"
+            if i = cursorDisplayIdx
+                if isEditMode
+                    lbl.color = "0x00FFFFFF"
+                else
+                    lbl.color = "0x000000FF"
+                end if
+            else
+                lbl.color = "0xFFFFFFFF"
+            end if
+            m.roundsGroup.appendChild(lbl)
+        next
 
-    ' Plus-square at the append slot (cursor one past last displayed row).
-    if cursorDisplayIdx >= 0 and cursorDisplayIdx = rounds.count()
-        yPos       = cursorDisplayIdx * lineHeight
-        squareSize = 40
-        squareX    = (cw - squareSize) / 2
+        ' Append slot
+        if cursorDisplayIdx >= 0 and cursorDisplayIdx = rounds.count()
+            yPos       = cursorDisplayIdx * lineHeight
+            squareSize = 40
+            squareX    = (cw - squareSize) / 2
 
-        outer = CreateObject("roSGNode", "Rectangle")
-        outer.width       = squareSize
-        outer.height      = squareSize
-        outer.color       = "0x000000C0"
-        outer.translation = [squareX, yPos]
-        m.roundsGroup.appendChild(outer)
+            outer = CreateObject("roSGNode", "Rectangle")
+            outer.width       = squareSize
+            outer.height      = squareSize
+            outer.color       = "0x000000C0"
+            outer.translation = [squareX, yPos]
+            m.roundsGroup.appendChild(outer)
 
-        inner = CreateObject("roSGNode", "Rectangle")
-        inner.width       = squareSize - 6
-        inner.height      = squareSize - 6
-        inner.color       = "0xD4AF37FF"
-        inner.translation = [squareX + 3, yPos + 3]
-        m.roundsGroup.appendChild(inner)
+            inner = CreateObject("roSGNode", "Rectangle")
+            inner.width       = squareSize - 6
+            inner.height      = squareSize - 6
+            inner.color       = "0xD4AF37FF"
+            inner.translation = [squareX + 3, yPos + 3]
+            m.roundsGroup.appendChild(inner)
 
-        plusLbl = CreateObject("roSGNode", "Label")
-        plusLbl.text       = "+"
-        plusLbl.width      = cw
-        plusLbl.height     = lineHeight
-        plusLbl.horizAlign = "center"
-        plusLbl.vertAlign  = "center"
-        plusLbl.font       = "font:LargeBoldSystemFont"
-        plusLbl.color      = "0x000000FF"
-        plusLbl.translation = [0, yPos - (lineHeight - squareSize) / 2]
-        m.roundsGroup.appendChild(plusLbl)
+            plusLbl = CreateObject("roSGNode", "Label")
+            plusLbl.text        = "+"
+            plusLbl.width       = cw
+            plusLbl.height      = lineHeight
+            plusLbl.horizAlign  = "center"
+            plusLbl.vertAlign   = "center"
+            plusLbl.font        = "font:LargeBoldSystemFont"
+            plusLbl.color       = "0x000000FF"
+            plusLbl.translation = [0, yPos - (lineHeight - squareSize) / 2]
+            m.roundsGroup.appendChild(plusLbl)
+        end if
     end if
 end sub
 

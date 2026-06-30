@@ -50,14 +50,12 @@ end sub
 ' ---- layout helpers -------------------------------------------------------
 
 sub computeLayout(n as integer)
-    ' Panels live within x=160..1760 (1600px content area).
-    ' 1-2 players use original 420px width (matches classic 2-player layout).
-    ' 3+ players fill the content area, packed tightly with a 10px gap.
-    contentLeft  = 160
-    contentWidth = 1600
-    minGap       = 10
-
+    ' 1-2 players: fixed 420px panels centered.
+    ' 3+ players: fill available width; side margins shrink for larger counts
+    ' to keep panels wide enough for 2-column score display.
     if n <= 2
+        contentLeft  = 160
+        contentWidth = 1600
         pw = 420
         if n = 1
             startX = contentLeft + (contentWidth - pw) / 2
@@ -68,6 +66,24 @@ sub computeLayout(n as integer)
             startX = contentLeft + (contentWidth - groupW) / 2
         end if
     else
+        if n = 8
+            contentLeft  = 20     ' no add button at 8 players, use full width
+            contentWidth = 1880
+            minGap       = 5
+        else if n = 7
+            contentLeft  = 20     ' panels end at 1826, leaving room for add button
+            contentWidth = 1806
+            minGap       = 5
+        else if n >= 5
+            contentLeft  = 80     ' panels end at 1826, leaving room for add button
+            contentWidth = 1746
+            minGap       = 10
+        else
+            contentLeft  = 160
+            contentWidth = 1600
+            minGap       = 10
+        end if
+
         pw = (contentWidth - (n - 1) * minGap) / n
         if pw > 800 then pw = 800
         if pw < 150 then pw = 150
@@ -179,11 +195,12 @@ function computeTotal(scores as object) as integer
 end function
 
 function computeOffset(scores as object, cursorIdx as integer) as integer
-    startIdx = scores.count() - 6
+    if scores.count() >= 10 then return 0   ' two-column mode: always start from 0
+    startIdx = scores.count() - 9
     if startIdx < 0 then startIdx = 0
     if cursorIdx >= 0 and cursorIdx < scores.count()
         if cursorIdx < startIdx then startIdx = cursorIdx
-        if cursorIdx > startIdx + 5 then startIdx = cursorIdx - 5
+        if cursorIdx > startIdx + 8 then startIdx = cursorIdx - 8
     end if
     return startIdx
 end function
@@ -191,7 +208,8 @@ end function
 function formatRoundScores(scores as object, startIdx as integer) as string
     if scores.count() = 0 then return ""
     text   = ""
-    endIdx = startIdx + 5
+    endIdx = startIdx + 8
+    if scores.count() >= 10 then endIdx = scores.count() - 1   ' two-column: pass all rounds
     if endIdx >= scores.count() then endIdx = scores.count() - 1
     for i = startIdx to endIdx
         if text = ""

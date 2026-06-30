@@ -10,10 +10,11 @@
     <script type="text/brightscript" uri="pkg:/components/HomeScene.brs" />
 
     <children>
-        <Rectangle
+        <Poster
             width="1920"
             height="1080"
-            color="0x35654DFF" />
+            uri="pkg:/images/background_fhd.png"
+            loadDisplayMode="scaleToFit" />
 
         <Scoreboard
             id="Scoreboard"
