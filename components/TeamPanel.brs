@@ -42,9 +42,9 @@ sub applyLayout()
     m.focusRing.width = pw
 
     m.nameLabel.translation = [margin, 20]
-    m.nameLabel.width       = cw
-    ' Position pencil at right edge of name row, nudged slightly inward
-    m.penPoster.translation = [margin + cw - 48, 20 + (50 - 28) / 2]
+    m.nameLabel.width       = cw - 34   ' reserve right 34px for pencil; prevents overlap
+    ' Pencil sits in reserved space at right edge, 5px above centre
+    m.penPoster.translation = [margin + cw - 28, 20 + (50 - 28) / 2 - 5]
 
     m.divider1.translation = [margin, 76]
     m.divider1.width       = cw

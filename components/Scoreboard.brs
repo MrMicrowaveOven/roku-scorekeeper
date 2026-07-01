@@ -367,7 +367,12 @@ sub onRepeatDelayTimerFire()
 end sub
 
 sub onRepeatTimerFire()
-    if m.repeatDirection <> "" then applyUpDown(m.repeatDirection)
+    if m.repeatDirection = "" then return
+    if m.editMode
+        applyUpDown(m.repeatDirection)
+    else if m.focusedIdx < m.panels.count()
+        moveCursor(m.repeatDirection)
+    end if
 end sub
 
 sub onRepeatAccelTimerFire()
@@ -577,7 +582,15 @@ function onKeyEvent(key as string, press as boolean) as boolean
                 stopRepeatTimers()
             end if
         else
-            if press and m.focusedIdx < m.panels.count() then moveCursor(key)
+            if press and m.focusedIdx < m.panels.count()
+                m.repeatDirection = key
+                m.repeatFast      = false
+                moveCursor(key)
+                m.repeatDelayTimer.control = "start"
+                ' no accel timer for navigation — ×10 jump doesn't apply to rows
+            else if not press
+                stopRepeatTimers()
+            end if
         end if
         return true
     end if
