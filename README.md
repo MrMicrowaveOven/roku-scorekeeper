@@ -36,7 +36,7 @@ you need, right on your TV.
     </ol>
 2. Download app.zip, either from this repo or from [here](https://benjs-bucket.s3.us-west-1.amazonaws.com/app.zip)
 3. Open `http://<the-ip-address-you-were-given>` in a browser on the same device.  You may need to give permission for your browser to access nearby devices.
-4. Log in using username: `rokudev`, and using the password you set in Step 1b.
+4. Log in using username: `rokudev` and the password you set in Step 1b.
 5. Upload `app.zip` via the **Replace with Zip** button.
 
 And voila!  Your Roku device should load the app automatically.  Have fun gaming!
