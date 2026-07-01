@@ -30,8 +30,10 @@ you need, right on your TV.
 ### Sideload
 
 1. Turn your Roku device into Developer mode.
-   a. From the home screen, hit the following on your Roku Remote: Home-Home-Home-Up-Up-Right-Left-Right-Left-Right.  That is, Homex3, Upx2, then Right-Left-Right-Left-Right.
-   b. Now that you're in the Developer Settings, make note of the IP address you are given (you'll need it later).  Select Enable Installer and Restart.  It will have you set a password (remember that too).
+    <ol type="a">
+        <li>From the home screen, hit the following on your Roku Remote: Home-Home-Home-Up-Up-Right-Left-Right-Left-Right.  That is, Home*3, Up*2, then Right-Left-Right-Left-Right.</li>
+        <li>Now that you're in the Developer Settings, make note of the IP address you are given (you'll need it later).  Select Enable Installer and Restart.  It will have you set a password (remember that too).</li>
+    </ol>
 2. Download app.zip, either from this repo or from [here](https://benjs-bucket.s3.us-west-1.amazonaws.com/app.zip)
 3. Open `http://<the-ip-address-you-were-given>` in a browser on the same device.  You may need to give permission for your browser to access nearby devices.
 4. Log in using username: `rokudev`, and using the password you set in Step 1b.
