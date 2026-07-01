@@ -37,6 +37,13 @@
             horizAlign="center"
             font="font:LargeBoldSystemFont" />
 
+        <Poster
+            id="penPoster"
+            uri="pkg:/images/pencil.png"
+            width="28"
+            height="28"
+            visible="false" />
+
         <Rectangle
             id="divider1"
             translation="[40, 76]"

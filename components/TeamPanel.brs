@@ -3,6 +3,7 @@
 
 sub init()
     m.nameLabel   = m.top.findNode("nameLabel")
+    m.penPoster   = m.top.findNode("penPoster")
     m.roundsGroup = m.top.findNode("roundsGroup")
     m.totalLabel  = m.top.findNode("totalLabel")
     m.focusRing   = m.top.findNode("focusRing")
@@ -42,6 +43,8 @@ sub applyLayout()
 
     m.nameLabel.translation = [margin, 20]
     m.nameLabel.width       = cw
+    ' Position pencil at right edge of name row, nudged slightly inward
+    m.penPoster.translation = [margin + cw - 48, 20 + (50 - 28) / 2]
 
     m.divider1.translation = [margin, 76]
     m.divider1.width       = cw
@@ -71,9 +74,11 @@ end sub
 
 sub onCursorIndexChange()
     if m.top.cursorIndex = -2
-        m.nameLabel.color = "0x000000FF"   ' black on gold = name selected
+        m.nameLabel.color  = "0x000000FF"
+        m.penPoster.visible = true
     else
-        m.nameLabel.color = "0xFFFFFFFF"
+        m.nameLabel.color   = "0xFFFFFFFF"
+        m.penPoster.visible = false
     end if
     rebuildRounds()
 end sub
@@ -161,6 +166,7 @@ sub rebuildRounds()
                     lbl.color = "0x00FFFFFF"
                 else
                     lbl.color = "0x000000FF"
+                    addEditHint(0, i * lineHeight, col1W, lineHeight)
                 end if
             else
                 lbl.color = "0xFFFFFFFF"
@@ -182,6 +188,7 @@ sub rebuildRounds()
                     lbl.color = "0x00FFFFFF"
                 else
                     lbl.color = "0x000000FF"
+                    addEditHint(col2X, (i - splitAt) * lineHeight, col2W, lineHeight)
                 end if
             else
                 lbl.color = "0xFFFFFFFF"
@@ -245,6 +252,7 @@ sub rebuildRounds()
                     lbl.color = "0x00FFFFFF"
                 else
                     lbl.color = "0x000000FF"
+                    addEditHint(0, i * lineHeight, cw, lineHeight)
                 end if
             else
                 lbl.color = "0xFFFFFFFF"
@@ -284,6 +292,20 @@ sub rebuildRounds()
             m.roundsGroup.appendChild(plusLbl)
         end if
     end if
+end sub
+
+sub addEditHint(x as integer, y as integer, w as integer, h as integer)
+    ps = 28   ' pencil icon display size (square)
+    ' Place pencil just past the score value (centre-aligned text ends ~w/2 + ~35px)
+    ' Clamp so it never spills outside the column
+    penX = x + w / 2 + 35
+    if penX + ps > x + w then penX = x + w - ps
+    hint = CreateObject("roSGNode", "Poster")
+    hint.uri         = "pkg:/images/pencil.png"
+    hint.width       = ps
+    hint.height      = ps
+    hint.translation = [penX, y + (h - ps) / 2 - 5]
+    m.roundsGroup.appendChild(hint)
 end sub
 
 function splitOnNewline(inputStr as string) as object

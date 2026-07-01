@@ -357,9 +357,7 @@ sub applyUpDown(direction as string)
     if direction = "up"
         m.scores[m.focusedIdx][idx] = scores[idx] + delta
     else
-        newVal = scores[idx] - delta
-        if newVal < 0 then newVal = 0
-        m.scores[m.focusedIdx][idx] = newVal
+        m.scores[m.focusedIdx][idx] = scores[idx] - delta
     end if
     pushScores()
 end sub
@@ -391,7 +389,6 @@ sub onRepeatAccelTimerFire()
         else
             snapped = (val \ 10) * 10
         end if
-        if snapped < 0 then snapped = 0
         m.scores[m.focusedIdx][idx] = snapped
     end if
     pushScores()
