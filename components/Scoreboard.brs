@@ -542,7 +542,7 @@ end sub
 
 sub openNameEntryForFocused()
     if m.focusedIdx >= m.panels.count() then return
-    dialog = CreateObject("roSGNode", "KeyboardDialog")
+    dialog = CreateObject("roSGNode", "StandardKeyboardDialog")
     dialog.title = "Rename Player"
     dialog.buttons = ["OK", "Cancel"]
     m.top.getScene().appendChild(dialog)
